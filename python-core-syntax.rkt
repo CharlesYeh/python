@@ -10,14 +10,19 @@ ParselTongue.
 (define-type CExp
   [CNum (n : number)]
   [CStr (s : string)]
+  
   [CTrue]
+  [CFalse]
+  
   [CSeq (e1 : CExp) (e2 : CExp)]
   [CError (e1 : CExp)]
   [CIf (test : CExp) (then : CExp) (else : CExp)]
   [CId (x : symbol)]
   [CLet (x : symbol) (bind : CExp) (body : CExp)]
+  
   [CApp (fun : CExp) (args : (listof CExp))]
   [CFunc (args : (listof symbol)) (body : CExp)]
+  
   [CPrim1 (prim : symbol) (arg : CExp)])
 
 (define-type CVal
