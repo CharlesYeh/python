@@ -26,12 +26,45 @@ structure that you define in python-syntax.rkt
                  ('func func-expr))
      (PyApp (get-structured-python func-expr)
             (map get-structured-python args-list))]
+    
+    ; loops
+    [(hash-table ('nodetype "For")
+                 ('target target)
+                 ('iter iter)
+                 ('body body)
+                 ('orelse orelse))
+     (PyForElse iter
+                (get-structured-python target)
+                (get-structured-python body)
+                (get-structured-python orelse))]
+    [(hash-table ('nodetype "While")
+                 ('test test)
+                 ('body body)
+                 ('orelse orelse))
+     (PyWhile (get-structured-python test)
+              (get-structured-python body))]
+    
+    ; control
+    [(hash-table ('nodetype "If")
+                 ('test test)
+                 ('body body)
+                 ('orelse orelse))
+     (PyIf (get-structured-python test)
+           (get-structured-python body)
+           (get-structured-python orelse))]
+    
     [(hash-table ('nodetype "Name")
                  ('ctx _)        ;; ignoring ctx for now
                  ('id id))
      (PyId (string->symbol id))]
+    
+    ; primitives
     [(hash-table ('nodetype "Num")
                  ('n n))
      (PyNum n)]
+    [(hash-table ('nodetype "Str")
+                 ('s s))
+     (PyStr s)]
+    
     [_ (error 'parse "Haven't handled a case yet")]))
 
