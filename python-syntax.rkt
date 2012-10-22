@@ -18,7 +18,7 @@
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   
   [PyNum (n : number)]
-  [PyString (s : string)]
+  [PyStr (s : string)]
   [PyTrue]
   [PyFalse]
   
