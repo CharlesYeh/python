@@ -12,7 +12,6 @@ ParselTongue.
   [CStr (s : string)]
   
   [CTrue]
-  [CFalse]
   
   [CSeq (e1 : CExp) (e2 : CExp)]
   [CError (e1 : CExp)]

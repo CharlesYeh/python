@@ -40,6 +40,8 @@
   
   [PyWhile (test : PyExpr) (body : PyExpr)]
   [PyFor (id : symbol) (seq : PyExpr) (body : PyExpr)]
+  [PyForElse (id : symbol) (seq : PyExpr) (body : PyExpr) (else : PyExpr)]
+  [PyPass]
   [PyBreak]
   [PyContinue]
   
