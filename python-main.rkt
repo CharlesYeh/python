@@ -14,11 +14,14 @@
   (run-python port))
 
 (define (run-python port)
-  (interp
-    (python-lib
-      (desugar
-        (get-structured-python
-          (parse-python/port port python-path))))))
+  (display (get-structured-python
+   (parse-python/port port python-path))))
+
+;  (interp
+;    (python-lib
+;      (desugar
+;        (get-structured-python
+;          (parse-python/port port python-path))))))
 
 (define python-path "/home/joe/bin/python")
 

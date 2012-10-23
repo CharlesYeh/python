@@ -53,18 +53,30 @@ structure that you define in python-syntax.rkt
            (get-structured-python body)
            (get-structured-python orelse))]
     
+    [(hash-table ('nodetype "Raise")
+                 ('type type)
+                 ('inst inst)
+                 ('tback tback))
+     (PyRaise (get-structured-python inst))]
+    
     [(hash-table ('nodetype "Name")
                  ('ctx _)        ;; ignoring ctx for now
                  ('id id))
      (PyId (string->symbol id))]
     
+    ; bool
+    [(hash-table ('nodetype "BoolOp")
+                 ('values values))
+     (PyPrim (map get-structured-python values))]
+    
     ; primitives
     [(hash-table ('nodetype "Num")
                  ('n n))
-     (PyNum n)]
+     (PyInt n)]
     [(hash-table ('nodetype "Str")
                  ('s s))
      (PyStr s)]
     
-    [_ (error 'parse "Haven't handled a case yet")]))
+    [_ (error 'parse (string-append "Haven't handled a case yet"
+                                    pyjson))]))
 
