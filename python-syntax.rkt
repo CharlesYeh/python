@@ -36,8 +36,11 @@
   [PyPreDec (id : symbol)]
   [PyPostDec (id : symbol)]
   
-  [PyTryExcept (body : PyExpr) (excepts : (listof TryExcept))]
-  [PyRaise (error : PyExpr)]
+  [PyTryExcept (body : PyExpr) (excepts : (listof PyExpr))]
+  [PyTryElseExcept (body : PyExpr) (else : PyExpr) (excepts : (listof PyExpr))]
+  [PyExcept (type : PyExpr) (body : PyExpr)]
+  [PyNamedExcept (type : PyExpr) (id : symbol) (body : PyExpr)]
+  [PyRaise (exc : PyExpr) (cause : PyExpr)]
   [PyReRaise]
   
   [PyFunc (name : symbol) (args : (listof symbol)) (func : PyExpr)]
