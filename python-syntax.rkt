@@ -17,7 +17,11 @@
   [PyId (x : symbol)]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   
-  [PyNum (n : number)]
+  ; data types
+  [PyInt (n : number)]
+  [PyFloat (n : number)]
+  [PyTuple (values : (listof PyExpr))]
+  [PyList (values : (listof PyExpr))]
   [PyStr (s : string)]
   [PyTrue]
   [PyFalse]

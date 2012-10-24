@@ -27,7 +27,10 @@ ParselTongue.
 (define-type CVal
   [VNum (n : number)]
   [VStr (s : string)]
+  
   [VTrue]
+  [VFalse]
+  
   [VClosure (env : Env) (args : (listof symbol)) (body : CExp)])
 
 (define-type-alias Env (hashof symbol CVal))
