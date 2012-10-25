@@ -14,15 +14,25 @@ ParselTongue.
   [CTrue]
   
   [CSeq (e1 : CExp) (e2 : CExp)]
-  [CError (e1 : CExp)]
+
+  ; control
   [CIf (test : CExp) (then : CExp) (else : CExp)]
+
+  ; error control
+  [CError (e1 : CExp)]
+  [CTryExcept (body : CExp) (excepts : (listof CExp))]
+  [CExcept (type : CExp) (body : CExp)]
+
   [CId (x : symbol)]
   [CLet (x : symbol) (bind : CExp) (body : CExp)]
   
   [CApp (fun : CExp) (args : (listof CExp))]
   [CFunc (args : (listof symbol)) (body : CExp)]
+
+  [CPass]
   
-  [CPrim1 (prim : symbol) (arg : CExp)])
+  [CPrim1 (prim : symbol) (arg : CExp)]
+  [CPrim2 (prim : symbol) (left : CExp) (right : CExp)])
 
 (define-type CVal
   [VNum (n : number)]
