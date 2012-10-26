@@ -7,7 +7,7 @@
   (type-case PyExpr expr
     [PySeq (es) (if (empty? es)
                     (CPass)
-                    (foldr (lambda (e1 e2)
+                    (foldl (lambda (e1 e2)
                              (CSeq e2
                                    (desugar e1)))
                            (desugar (first es))
