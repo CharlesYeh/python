@@ -15,6 +15,8 @@
   [PySeq (es : (listof PyExpr))]
   
   [PyId (x : symbol)]
+  
+  [PyFunc (name : symbol) (args : (listof symbol)) (func : PyExpr)]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   
   ; data types
@@ -29,6 +31,7 @@
   [PyAssign (lhs : LHS) (value : PyExpr)]
   [PyPrimAssign (op : symbol) (lhs : LHS) (value : PyExpr)]
   
+  [PyCompare (ops : (listof symbol)) (left : PyExpr) (args : (listof PyExpr))]
   [PyPrim (op : symbol) (args : (listof PyExpr))]
   
   [PyPreInc (id : symbol)]
@@ -36,15 +39,19 @@
   [PyPreDec (id : symbol)]
   [PyPostDec (id : symbol)]
   
-  [PyTryExcept (body : PyExpr) (excepts : (listof TryExcept))]
-  [PyRaise (error : PyExpr)]
+  ; error control
+  [PyTryExcept (body : PyExpr) (excepts : (listof PyExpr))]
+  [PyTryElseExcept (body : PyExpr) (else : PyExpr) (excepts : (listof PyExpr))]
+  [PyRaise (exc : PyExpr) (cause : PyExpr)]
   [PyReRaise]
+  [PyExcept (type : PyExpr) (body : PyExpr)]
+  [PyNamedExcept (type : PyExpr) (id : symbol) (body : PyExpr)]
   
-  [PyFunc (name : symbol) (args : (listof symbol)) (func : PyExpr)]
-  
+  ; loops
   [PyWhile (test : PyExpr) (body : PyExpr)]
   [PyFor (id : symbol) (seq : PyExpr) (body : PyExpr)]
   [PyForElse (id : symbol) (seq : PyExpr) (body : PyExpr) (else : PyExpr)]
+
   [PyPass]
   [PyBreak]
   [PyContinue]
