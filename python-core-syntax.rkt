@@ -43,5 +43,13 @@ ParselTongue.
   
   [VClosure (env : Env) (args : (listof symbol)) (body : CExp)])
 
-(define-type-alias Env (hashof symbol CVal))
+(define-type-alias Location number)
+(define-type-alias Binding
+  [bind (name : symbol) (value : Location)])
+
+;(define-type-alias Env (hashof symbol Location))
+
+(define-type-alias Env (listof Binding))
+(define-type-alias Store (hashof Location CVal))
+
 

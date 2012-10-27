@@ -3,21 +3,52 @@
 (require "python-core-syntax.rkt"
          "python-primitives.rkt")
 
-(define (interp-env expr env)
+;; new-loc : -> Location
+(define new-loc
+  (let ([n (box 0)])
+    (lambda ()
+      (begin
+         (set-box! n(add1 (unbox n)))
+         (unbox n)))))
+
+(define (lookup-defined (name : symbol) (env : Env) (store : Store)) : Location
+  (if (empty? env)
+      -1
+      (local ([define node (first env)])
+        (if (equal? name (bind-name))
+            (type-case (optionof CVal) (hash-ref store (bind-value node))
+              [some (val)
+                    (type-case CVal val
+                      
+
+;; interp-env : CExp Env Store -> CVal
+(define (interp-env expr env store)
   (type-case CExp expr
     [CNum (n) (VNum n)]
     [CStr (s) (VStr s)]
+
     [CTrue () (VTrue)]
+    [CFalse () (VFalse)]
 
     [CError (e) (error 'interp (to-string (interp-env e env)))]
 
-    [CIf (i t e) (type-case CVal (interp-env i env)
-      [VTrue () (interp-env t env)]
-      [else (interp-env e env)])]
+    [CIf (i t e)
+      (local ([define cond (type-case CVal (interp-env i env)
+                             [VTrue () #t]
+                             [VInt (n) (not (= 0 n))]
+                             [VStr (s) (not (= s ''))]
+                             [else (interp-env e env)]))
+        (if cond
+            (interp-env t env store)
+            (interp-env e env store)))]
 
-    [CId (x) (type-case (optionof CVal) (hash-ref env x)
-      [some (v) v]
-      [none () (error 'interp "Unbound identifier")])]
+    [CId (x) (local ([define loc (lookup-defined x env store)])
+               (if (= -1 loc)
+                   (error 'interp (string-append "Unbound identifier: "
+                                                 (symbol->string x)))
+                   (type-case (optionof CVal) (hash-ref store loc)
+                     [some (v) v]
+                     [none () (error 'interp "Unbound identifier")]))]
 
     [CLet (x bind body)
       (interp-env body (hash-set env x (interp-env bind env)))]
@@ -45,6 +76,7 @@
          (hash-set (bind-args (rest args) (rest vals) env)
                    (first args) (first vals))]))
 
+;; interp : CExp -> CVal
 (define (interp expr)
-  (interp-env expr (hash (list))))
+  (interp-env expr (list) (hash (list))))
 
