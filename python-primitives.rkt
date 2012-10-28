@@ -25,7 +25,6 @@ primitives here.
     [VUndefined () (error 'pretty "Unbound")]
     
     [VClosure (env args body) (error 'prim "Can't print closures yet")]
-    [VError (err) (error 'prim "Can't print errors yet")]
     [VObject (fields) (error 'prim "Can't print objs yet")]))
   
 

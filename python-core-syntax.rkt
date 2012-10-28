@@ -53,14 +53,10 @@ ParselTongue.
   ; to handle python scope
   [VUndefined]
   
-  [VClosure (env : Env) (args : (listof symbol)) (body : CExp)]
-  [VError (err : Env)]
+  [VClosure (args : (listof symbol)) (body : CExp) (env : Env)]
   
   [VObject (fields : (listof FieldV))])
 
-(define-type-alias Location number)
-(define-type Binding
-  [bind (name : symbol) (value : Location)])
 
 (define-type AnswerC
   [ValueA (value : CVal) (store : Store)]

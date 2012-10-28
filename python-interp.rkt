@@ -11,6 +11,19 @@
         (set-box! n(add1 (unbox n)))
         (unbox n)))))
 
+;; lookup : symbol Env -> Location
+;; finds the location of a symbol in the environment
+(define (lookup [name : symbol] [env : Env]) : Location
+  (if (empty? env)
+      ; if undefined, look for previous value
+      -1
+      (let ([node (first env)])
+        (if (equal? name (binding-name node))
+            (binding-value node)
+            (lookup name (rest env))))))
+
+;; lookup-defined : symbol Env Store -> Location
+;; finds the location of a symbol in the environment, searching until there's a defined value
 (define (lookup-defined (name : symbol) (env : Env) (store : Store)) : Location
   (if (empty? env)
       -1
@@ -33,44 +46,73 @@
     [CTrue () (ValueA (VTrue) store)]
     [CFalse () (ValueA (VFalse) store)]
 
-    [CError (e) (error 'interp (to-string (interp-env e env store)))]
+    [CError (e) (interp-error (to-string (interp-env e env store)) store)]
 
     [CIf (i t e)
-      (local ([define cond (type-case CVal (interp-env i env store)
-                             [VTrue () #t]
-                             [VInt (n) (not (= 0 n))]
-                             [VStr (s) (not (equal? s ""))]
-                             [else #f])])
-        (if cond
-            (interp-env t env store)
-            (interp-env e env store)))]
+         (type-case AnswerC (interp-env i env store)
+           [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+           [ValueA (value store)
+                   (if (type-case CVal value
+                         [VTrue () #t]
+                         [VInt (n) (not (= 0 n))]
+                         [VStr (s) (not (equal? s ""))]
+                         [else #f])
+                       
+                       (interp-env t env store)
+                       (interp-env e env store))])]
 
     [CId (x) (local ([define loc (lookup-defined x env store)])
                (if (= -1 loc)
-                   (error 'interp (string-append "Unbound identifier: "
-                                                 (symbol->string x)))
+                   (interp-error (string-append "Unbound identifier: "
+                                                (symbol->string x)) store)
                    (type-case (optionof CVal) (hash-ref store loc)
-                     [some (v) v]
-                     [none () (error 'interp "Unbound identifier")])))]
-
+                     [some (v) (ValueA v store)]
+                     [none () (interp-error "Unbound identifier" store)])))]
+    
     [CLet (x bind body)
-          (local ([define loc (new-loc)])
-            (begin
-              (hash-set! store loc (interp-env bind env store))
-              (interp-env body
-                          (cons (binding x loc) env)
-                          store)))]
+          ; get value of binding
+          (type-case AnswerC (interp-env bind env store)
+            [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+            [ValueA (value store)
+                    ; insert binding
+                      (local ([define use-loc (new-loc)]
+                              [define use-env (cons (binding x use-loc) env)])
+                        (begin
+                          (hash-set! store use-loc value)
+                          (interp-env body use-env store)))])]
 
     [CSeq (e1 e2)
       (begin (interp-env e1 env store) (interp-env e2 env store))]
 
     [CApp (fun arges) (interp-app fun arges env store)]
 
-    [CFunc (args body) (VClosure env args body)] 
+    [CFunc (args body) (ValueA (VClosure args body env) store)]
 
-    [CPrim1 (prim arg) (python-prim1 prim (interp-env arg env store))]
+    [CPrim1 (prim arg)
+            (interp-prim1 prim arg env store)]
 
-    [else (VTrue)]))
+    [else (ValueA (VTrue) store)]))
+
+;; interp-prim1 : symbol ExprC Env Store -> Result
+;; interprets a single argument primitive operation
+(define (interp-prim1 [op : symbol] [arg : CExp] [env : Env] [store : Store]) : AnswerC
+  (type-case AnswerC (interp-env arg env store)
+    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    ; evaluate
+    [ValueA (value store)
+            (ValueA (case op
+                      ['print (begin
+                                (display (pretty value))
+                                value)]
+                      ['tagof (type-case CVal value
+                                [VStr (s) (VStr "string")]
+                                [VInt (n) (VStr "number")]
+                                [VObject (fields) (VStr "object")]
+                                [VClosure (args body env) (VStr "function")]
+                                [VTrue () (VStr "boolean")]
+                                [VFalse () (VStr "boolean")]
+                                [VUndefined () (VStr "undefined")])])
+                    store)]))
 
 ;; interp-app : ExprC (listof ExprC) Env Store -> AnswerC
 ;; interprets function applications, checking for exceptions
