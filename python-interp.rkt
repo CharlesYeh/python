@@ -40,7 +40,8 @@
 ;; interp-env : CExp Env Store -> CVal
 (define (interp-env (expr : CExp) (env : Env) (store : Store)) : AnswerC
   (type-case CExp expr
-    [CNum (n) (ValueA (VInt n) store)]
+    [CInt (n) (ValueA (VInt n) store)]
+    [CFloat (n) (ValueA (VInt n) store)]
     [CStr (s) (ValueA (VStr s) store)]
 
     [CTrue () (ValueA (VTrue) store)]

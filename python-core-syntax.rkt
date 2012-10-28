@@ -11,7 +11,8 @@ ParselTongue.
   [fieldC (name : string) (value : CExp)])
 
 (define-type CExp
-  [CNum (n : number)]
+  [CInt (n : number)]
+  [CFloat (n : number)]
   [CStr (s : string)]
   
   [CTrue]

@@ -28,8 +28,8 @@
                                 (desugar-helper els))]
     
     
-    [PyInt (n) (CNum n)]
-    #;[PyFloat (n) ...]
+    [PyInt (n) (CInt n)]
+    [PyFloat (n) (CFloat n)]
     #;[PyTuple (values) ...]
     #;[PyList (values) ...]
     [PyStr (s) (CStr s)]
