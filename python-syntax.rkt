@@ -19,7 +19,7 @@
   
   [PyId (x : symbol)]
   
-  [PyFunc (args : (listof symbol)) (func : PyExpr)]
+  [PyFunc (args : (listof symbol)) (body : PyExpr)]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   
   [PyIf (cond : PyExpr) (then : PyExpr) (else : PyExpr)]
