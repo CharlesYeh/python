@@ -50,7 +50,7 @@
   ; error control
   [PyTryExcept (body : PyExpr) (excepts : (listof PyExpr))]
   [PyTryElseExcept (body : PyExpr) (else : PyExpr) (excepts : (listof PyExpr))]
-  [PyRaise (exc : PyExpr) (cause : PyExpr)]
+  [PyRaise (type : PyExpr) (inst : PyExpr) (tback : PyExpr)]
   [PyReRaise]
   [PyExcept (type : PyExpr) (body : PyExpr)]
   [PyNamedExcept (type : PyExpr) (id : symbol) (body : PyExpr)]

@@ -63,10 +63,28 @@ structure that you define in python-syntax.rkt
      (PyTryExcept (get-structured-python body)
                   (map get-structured-python handlers))]
     [(hash-table ('nodetype "Raise")
-                 ('exc exc)   ; what is this? ############
-                 ('cause cause))
+                 ('type type)   ; what is this? ############
+                 ('inst inst)
+                 ('tback tback))
      ;(PyRaise (get-structured-python exc) (get-structured-python cause))
      (PyRaise (get-structured-python exc) (PyPass))]
+    
+    
+    
+#hasheq((type . #hasheq((args . (#hasheq((s . 0 or 0 is true instead of false)
+                                         (nodetype . Str))))
+                        (node ype . Call)
+                        (keywords . ())
+                        (kwargs . )
+                        (starargs . )
+                        (func . #hasheq((id . Exception)
+                                        (ctx . #hasheq((n detype . Load)))
+                                        (nodetype . Name)))))
+        (nodetype . Raise)
+        (tback . )
+        (inst . ))
+
+    
     [(hash-table ('nodetype "ExceptHandler")
                  ('type type)
                  ('name name)    ; use this #############
