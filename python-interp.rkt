@@ -8,8 +8,8 @@
   (let ([n (box 0)])
     (lambda ()
       (begin
-         (set-box! n(add1 (unbox n)))
-         (unbox n)))))
+        (set-box! n(add1 (unbox n)))
+        (unbox n)))))
 
 (define (lookup-defined (name : symbol) (env : Env) (store : Store)) : Location
   (if (empty? env)
@@ -23,7 +23,6 @@
                       [else (binding-value node)])]
               [none () -1])
             (lookup-defined name (rest env) store)))))
-                      
 
 ;; interp-env : CExp Env Store -> CVal
 (define (interp-env (expr : CExp) (env : Env) (store : Store)) : AnswerC
@@ -70,6 +69,7 @@
     [CFunc (args body) (VClosure env args body)] 
 
     [CPrim1 (prim arg) (python-prim1 prim (interp-env arg env store))]
+
     [else (VTrue)]))
 
 ;; interp-app : ExprC (listof ExprC) Env Store -> AnswerC

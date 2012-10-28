@@ -58,6 +58,9 @@ ParselTongue.
   
   [VObject (fields : (listof FieldV))])
 
+(define-type-alias Location number)
+(define-type Binding
+  [bind (name : symbol) (value : Location)])
 
 (define-type AnswerC
   [ValueA (value : CVal) (store : Store)]
