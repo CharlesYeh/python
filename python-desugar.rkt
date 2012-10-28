@@ -57,7 +57,7 @@
     [PyTryExcept (body excepts) (CTryExcept (desugar-helper body)
                                             (map desugar-helper excepts))]
     #;[PyTryElseExcept (body else excepts) ...]
-    [PyRaise (type inst tback) (CError (desugar-helper inst))]
+    [PyRaise (exc cause) (CError (desugar-helper exc))]
     #;[PyReRaise () ...]
     [PyExcept (type body) (CExcept (desugar-helper type) (desugar-helper body))]
     #;[PyNamedExcept (type id body) ...]
