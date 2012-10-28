@@ -18,7 +18,7 @@
     
     [PyId (x) (CId x)]
     
-    #;[PyFunc (args body) ...]
+    [PyFunc (args body) (CFunc args (desugar-helper body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
                             (map desugar-helper args))]
     
