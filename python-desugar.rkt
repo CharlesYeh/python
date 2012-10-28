@@ -15,7 +15,7 @@
     
     [PyId (x) (CId x)]
     
-    #;[PyFunc (name args func) ...]
+    #;[PyFunc (args body) ...]
     [PyApp (fun args) (CApp (desugar fun)
                             (map desugar args))]
     
@@ -76,13 +76,13 @@
 
 
 (define (desugar-compare-helper ops left args)
-(begin
- (display args)
-  (local ([define farg (first args)]
-          [define fop (first ops)])
-    (if (= 1 (length args))
-        (CPrim2 fop left farg)
-        (CPrim2 'And
-                (CPrim2 fop left farg)
-                (desugar-compare-helper (rest ops) farg (rest args))))))
-)
+  (begin
+    (display args)
+    (local ([define farg (first args)]
+            [define fop (first ops)])
+      (if (= 1 (length args))
+          (CPrim2 fop left farg)
+          (CPrim2 'And
+                  (CPrim2 fop left farg)
+                  (desugar-compare-helper (rest ops) farg (rest args))))))
+  )

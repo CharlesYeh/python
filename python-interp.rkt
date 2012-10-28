@@ -37,7 +37,7 @@
          (local ([define condition (type-case CVal (interp-env i env)
                                      [VTrue () #t]
                                      [VNum (n) (not (= 0 n))]
-                                     [VStr (s) (not (string=? s ''))]
+                                     [VStr (s) (not (string=? s ""))]
                                      [else (interp-env e env)])])
            (if condition
                (interp-env t env store)
