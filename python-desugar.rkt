@@ -12,28 +12,28 @@
                                    (desugar e1)))
                            (desugar (first es))
                            (rest es)))]
+    
+    [PyId (x) (CId x)]
+    
+    #;[PyFunc (name args func) ...]
     [PyApp (fun args) (CApp (desugar fun)
                             (map desugar args))]
-    
-    ; loops
     
     ; control
     [PyIf (cond then els) (CIf (desugar cond)
                                 (desugar then)
                                 (desugar els))]
     
-    ; error control
-    [PyTryExcept (body excepts) (CTryExcept (desugar body)
-                                            (map desugar excepts))]
-    [PyRaise (exc cause) (CError (desugar exc))]
-    [PyExcept (type body) (CExcept (desugar type) (desugar body))]
-    
-    [PyPass () (CPass)]
     
     [PyInt (n) (CNum n)]
+    #;[PyFloat (n) ...]
+    #;[PyTuple (values) ...]
+    #;[PyList (values) ...]
     [PyStr (s) (CStr s)]
-    [PyId (x) (CId x)]
+    #;[PyTrue () ...]
+    #;[PyFalse () ...]
     
+    [PyCompare (ops left args) (desugar-compare ops left args)]
     [PyPrim (op args)
             (if (= 1 (length args))
                 (CPrim1 op (desugar (first args)))
@@ -42,7 +42,30 @@
                                     (desugar a)))
                        (desugar (first args))
                        (rest args)))]
-    [PyCompare (ops left args) (desugar-compare ops left args)]
+    
+    ; EVAN: Do these exist in python?
+    #;[PyPreInc (id) ...]
+    #;[PyPostInc (id) ...]
+    #;[PyPreDec (id) ...]
+    #;[PyPostDec (id) ...]
+    
+    ; error control
+    [PyTryExcept (body excepts) (CTryExcept (desugar body)
+                                            (map desugar excepts))]
+    #;[PyTryElseExcept (body else excepts) ...]
+    [PyRaise (exc cause) (CError (desugar exc))]
+    #;[PyReRaise () ...]
+    [PyExcept (type body) (CExcept (desugar type) (desugar body))]
+    #;[PyNamedExcept (type id body) ...]
+    
+    ; loops
+    #;[PyWhile (test body) ...]
+    #;[PyFor (id seq body) ...]
+    #;[PyForElse (id seq body else-exp) ...]
+    
+    [PyPass () (CPass)]
+    #;[PyBreak () ...]
+    #;[PyContinue () ...]
     
     [else (begin
             (display expr)

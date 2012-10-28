@@ -12,6 +12,7 @@ ParselTongue.
   [CStr (s : string)]
   
   [CTrue]
+  [CFalse]
   
   [CSeq (e1 : CExp) (e2 : CExp)]
 
@@ -44,7 +45,7 @@ ParselTongue.
   [VClosure (env : Env) (args : (listof symbol)) (body : CExp)])
 
 (define-type-alias Location number)
-(define-type-alias Binding
+(define-type Binding
   [bind (name : symbol) (value : Location)])
 
 ;(define-type-alias Env (hashof symbol Location))

@@ -19,6 +19,8 @@
   [PyFunc (name : symbol) (args : (listof symbol)) (func : PyExpr)]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   
+  [PyIf (cond : PyExpr) (then : PyExpr) (else : PyExpr)]
+  
   ; data types
   [PyInt (n : number)]
   [PyFloat (n : number)]
@@ -54,7 +56,5 @@
 
   [PyPass]
   [PyBreak]
-  [PyContinue]
-  
-  [PyIf (cond : PyExpr) (then : PyExpr) (else : PyExpr)])
+  [PyContinue])
 
