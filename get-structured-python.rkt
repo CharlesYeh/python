@@ -67,22 +67,7 @@ structure that you define in python-syntax.rkt
                  ('inst inst)
                  ('tback tback))
      ;(PyRaise (get-structured-python exc) (get-structured-python cause))
-     (PyRaise (get-structured-python exc) (PyPass))]
-    
-    
-    
-#hasheq((type . #hasheq((args . (#hasheq((s . 0 or 0 is true instead of false)
-                                         (nodetype . Str))))
-                        (node ype . Call)
-                        (keywords . ())
-                        (kwargs . )
-                        (starargs . )
-                        (func . #hasheq((id . Exception)
-                                        (ctx . #hasheq((n detype . Load)))
-                                        (nodetype . Name)))))
-        (nodetype . Raise)
-        (tback . )
-        (inst . ))
+     (PyRaise (get-structured-python type) (PyPass) (PyPass))]
 
     
     [(hash-table ('nodetype "ExceptHandler")
