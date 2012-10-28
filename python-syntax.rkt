@@ -11,12 +11,15 @@
   [ExceptIdError (error : PyExpr) (id : symbol) (body : PyExpr)]
   [ExceptElse (body : PyExpr)])
 
+(define-type FieldP
+  [fieldP (name : string) (value : PyExpr)])
+
 (define-type PyExpr
   [PySeq (es : (listof PyExpr))]
   
   [PyId (x : symbol)]
   
-  [PyFunc (name : symbol) (args : (listof symbol)) (func : PyExpr)]
+  [PyFunc (args : (listof symbol)) (func : PyExpr)]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   
   [PyIf (cond : PyExpr) (then : PyExpr) (else : PyExpr)]
@@ -27,6 +30,9 @@
   [PyTuple (values : (listof PyExpr))]
   [PyList (values : (listof PyExpr))]
   [PyStr (s : string)]
+  
+  [PyObject (fields : (listof FieldP))]
+  
   [PyTrue]
   [PyFalse]
   

@@ -16,6 +16,7 @@ ParselTongue.
   
   [CTrue]
   [CFalse]
+  [CUndefined]
   
   [CSeq (e1 : CExp) (e2 : CExp)]
 
@@ -49,7 +50,6 @@ ParselTongue.
   
   [VTrue]
   [VFalse]
-  
   ; to handle python scope
   [VUndefined]
   
