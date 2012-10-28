@@ -16,13 +16,17 @@ primitives here.
 
 (define (pretty arg)
   (type-case CVal arg
-    [VNum (n) (to-string n)]
+    [VInt (n) (to-string n)]
     [VStr (s) s]
     
     [VTrue () "true"]
     [VFalse () "false"]
     
-    [VClosure (env args body) (error 'prim "Can't print closures yet")]))
+    [VUndefined () (error 'pretty "Unbound")]
+    
+    [VClosure (env args body) (error 'prim "Can't print closures yet")]
+    [VError (err) (error 'prim "Can't print errors yet")]
+    [VObject (fields) (error 'prim "Can't print objs yet")]))
   
 
 (define (print arg)
