@@ -18,7 +18,7 @@
     
     [PyId (x) (CId x)]
     
-    [PyFunc (args body) (CFunc args (desugar-helper body))]
+    [PyFunc (args body) (CFunc args (get-vars-then-desugar body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
                             (map desugar-helper args))]
     
@@ -160,7 +160,7 @@
 
 (define (desugar-compare-helper ops left args)
   (begin
-    (display args)
+    ;(display args)
     (local ([define farg (first args)]
             [define fop (first ops)])
       (if (= 1 (length args))

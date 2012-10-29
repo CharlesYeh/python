@@ -13,7 +13,11 @@ structure that you define in python-syntax.rkt
 |#
 
 (define (get-structured-python pyjson)
-  (match pyjson
+  (begin
+    ;(display pyjson)
+    ;(display "\n\n")
+    
+    (match pyjson
     [(hash-table ('nodetype "Module") ('body expr-list))
      (PySeq (map get-structured-python expr-list))]
     [(hash-table ('nodetype "Expr") ('value expr))
@@ -24,11 +28,27 @@ structure that you define in python-syntax.rkt
                  ('starargs starargs) ;; ignoring starargs for now
                  ('args args-list)
                  ('func func-expr))
-     (PyApp (get-structured-python func-expr)
+       (PyApp (get-structured-python func-expr)
             (map get-structured-python args-list))]
     
     [(list a ...) (PySeq (map get-structured-python a))]
     
+    [(hash-table ('nodetype "arguments")
+                 ('args args)
+                 ('defaults defaults)
+                 ('kwargannotation kwargannotation)
+                 ('vararg vararg)
+                 ('kwarg kwarg)
+                 ('varargannotation varargannotation)
+                 ('kw_defaults kw_defaults)
+                 ('kwonlyargs kwonlyargs))
+     (map get-structured-python args)]
+    
+    [(hash-table ('nodetype "arg")
+                 ('arg arg)
+                 ('annotation annotation))
+     (string->symbol arg)]
+                 
     [(hash-table ('nodetype "FunctionDef")
                  ('name name)
                  ('args args)
@@ -40,7 +60,7 @@ structure that you define in python-syntax.rkt
     [(hash-table ('nodetype "Lambda")
                  ('args args)
                  ('body body))
-     (PyFunc (map get-structured-python args)
+     (PyFunc (get-structured-python args)
              (get-structured-python body))]
     
     ; loops
@@ -147,4 +167,8 @@ structure that you define in python-syntax.rkt
          (display pyjson)
          (display "\n")
          (error 'parse "Haven't handled a case yet"))]))
+
+)
+
+
 

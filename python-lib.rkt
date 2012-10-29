@@ -22,7 +22,13 @@ that calls the primitive `print`.
   (CFunc (list 'check-true)
     (CIf (CId 'check-true) (CTrue) (CError (CStr "Assert failed")))))
 
-(define len
+(define assert-equal-lambda
+  (CFunc (list 'arg1 'arg2)
+    (CIf (CPrim2 'Eq (CId 'arg1) (CId 'arg2))
+         (CTrue)
+         (CError (CStr "Assert failed")))))
+
+#;(define len
   (CFunc (list 'the-list)
          (CPrim1 'len (CId 'the-list))))
 
@@ -37,10 +43,11 @@ that calls the primitive `print`.
 
 (define lib-functions
   (list (bind 'print print-lambda)
-        (bind 'len len)
+        ;(bind 'len len)
         (bind 'True true-val)
         (bind 'False false-val)
         (bind '___assertTrue assert-true-lambda)
+        (bind '___assertEqual assert-equal-lambda)
 
 ))
 

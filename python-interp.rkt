@@ -146,10 +146,10 @@
                                 [VTrue () (VStr "boolean")]
                                 [VFalse () (VStr "boolean")]
                                 [VUndefined () (VStr "undefined")])]
-|#
                       ['len (type-case CVal value
                               [VStr (s) (VInt (string-length s))]
                               [else (VUndefined)])]
+|#
                       ; numbers
                       ['USub (type-case CVal value
                                [VInt (n) (VInt (- 0 n))]
@@ -325,7 +325,7 @@
 
 ;; interp : CExp -> CVal
 (define (interp expr)
-  (interp-env expr (list) (hash (list))))
+  (interp-env expr empty (make-hash empty)))
 
 
 
