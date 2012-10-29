@@ -39,6 +39,8 @@
               [none () -1])
             (lookup-defined name (rest env) store)))))
 
+;; get-truth-value : CVal -> boolean
+;; the truth value definitions of different types when used as a boolean
 (define (get-truth-value value)
   (type-case CVal value
     [VTrue () #t]
@@ -71,6 +73,7 @@
 
 
 ;; interp-env : CExp Env Store -> CVal
+;; interprets the given expression, with environment and store
 (define (interp-env (expr : CExp) (env : Env) (store : Store)) : AnswerC
   (begin
     ;(display expr)

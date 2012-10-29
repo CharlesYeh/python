@@ -3,9 +3,13 @@
 (require "python-syntax.rkt"
          "python-core-syntax.rkt")
 
+;; desugar : PyExpr -> CExp
+;; desugars the given visible language expression to the core language
 (define (desugar expr)
   (get-vars-then-desugar expr))
 
+;; desugar-helper : PyExpr -> CExp
+;; same as desugar, but used for non-top level expressions
 (define (desugar-helper expr)
   (type-case PyExpr expr
     [PySeq (es) (if (empty? es)
@@ -160,10 +164,13 @@
               (get-vars-seq (rest es)))))
 
 
-
+;; desugar-compare : (listof symbol) PyExpr (listof PyExpr) -> CExp
+;; desugars a string of comparisons
 (define (desugar-compare ops left args)
   (desugar-compare-helper ops (desugar-helper left) (map desugar-helper args)))
 
+;; desugar-compare-helper (listof symbol) PyExpr (listof PyExpr) -> CExp
+;; desugars the comparisons themselves, ANDing the comparisons together
 (define (desugar-compare-helper ops left args)
   (begin
     ;(display args)

@@ -10,6 +10,7 @@ ParselTongue.
 (define-type FieldC
   [fieldC (name : string) (value : CExp)])
 
+; the core expression type variants
 (define-type CExp
   [CInt (n : number)]
   [CFloat (n : number)]
@@ -46,6 +47,7 @@ ParselTongue.
 (define-type FieldV
   [fieldV (name : string) (value : CVal)])
 
+; the value data type
 (define-type CVal
   [VInt (n : number)]
   [VStr (s : string)]
@@ -59,12 +61,14 @@ ParselTongue.
   
   [VObject (fields : (listof FieldV))])
 
-
+; the combination value with store, also used to keep track of exceptions
 (define-type AnswerC
   [ValueA (value : CVal) (store : Store)]
   [ExceptionA (exn : CVal) (store : Store)])
 
 
+; Env keeps track of id to location,
+; and Store keeps track of location to value
 (define-type-alias Location number)
 (define-type Binding
   [binding (name : symbol) (value : Location)])
@@ -72,10 +76,12 @@ ParselTongue.
 (define-type-alias Env (listof Binding))
 (define-type-alias Store (hashof Location CVal))
 
-
+; convenience method for interpretation errors
 (define (interp-error str store)
   (ExceptionA (VObject (list (fieldV "message" (VStr str))
                              (fieldV "type" (VStr "Python")))) store))
+
+; convenience method for desugaring errors
 (define (desugar-error str)
   (CError (CObject (list (fieldC "message" (CStr str))
                          (fieldC "type" (CStr "Python"))))))

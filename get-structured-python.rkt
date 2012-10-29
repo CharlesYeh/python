@@ -11,6 +11,8 @@ module.  You should use this file to turn it into a plai-typed data
 structure that you define in python-syntax.rkt
 
 |#
+;; get-structured-python : hash-table -> *
+;; turns the given parsed AST python tree to a PyExpr, the sugared expression
 
 (define (get-structured-python pyjson)
   (begin
