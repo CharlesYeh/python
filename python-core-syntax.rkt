@@ -40,7 +40,8 @@ ParselTongue.
   [CPrim1 (prim : symbol) (arg : CExp)]
   [CPrim2 (prim : symbol) (left : CExp) (right : CExp)]
           
-  [CObject (fields : (listof FieldC))])
+  [CObject (fields : (listof FieldC))]
+  [CSet (id : symbol) (value : CExp)])
 
 (define-type FieldV
   [fieldV (name : string) (value : CVal)])

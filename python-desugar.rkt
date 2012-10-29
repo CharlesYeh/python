@@ -67,13 +67,19 @@
     #;[PyFor (id seq body) ...]
     #;[PyForElse (id seq body else-exp) ...]
     
+    [PyAssign (lhs value) (type-case LHS lhs
+                            [IdLHS (id) (CSet id (desugar value))]
+                            [else (error 'desugar "Handle other assignments")])]
+                            ;[BracketLHS (obj field) (SetFieldC (desugar obj) (desugar field) (desugar value))]
+                            ;[DotLHS (obj field) (SetFieldC (desugar obj) (StrC (symbol->string field)) (desugar value))])]
+    
     [PyPass () (CPass)]
     #;[PyBreak () ...]
     #;[PyContinue () ...]
     
     [else (begin
             (display expr)
-            (desugar-error "Haven't handled a case yet"))]))
+            (error 'desugar "Haven't handled a case yet"))]))
 
 
 ;; get-vars-then-desugar-helper : (listof symbol) ExprP -> ExprC

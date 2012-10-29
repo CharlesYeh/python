@@ -46,6 +46,30 @@
     [VStr (s) (not (equal? s ""))]
     [else #f]))
 
+;; ObjectFields
+;; used to allow the object field interpret to return an exception
+(define-type ObjectFields
+  [ObjFields (fields : (listof FieldV)) (store : Store)]
+  [ObjException (exn-val : CVal) (store : Store)])
+
+;; interp-obj-fields : (listof FieldC) Env Store -> (listof FieldV)
+;; interprets an object's fields to values
+(define (interp-obj-fields [fs : (listof FieldC)] [env : Env] [store : Store]) : ObjectFields
+  (if (empty? fs)
+      (ObjFields empty store)
+      ; interp first, and recurse on rest
+      (type-case FieldC (first fs)
+        [fieldC (name value)
+                ; check value to set to
+                (type-case AnswerC (interp-env value env store)
+                  [ExceptionA (exn-val store) (ObjException exn-val store)]
+                  [ValueA (value store)
+                          ; eval rest of fields
+                          (type-case ObjectFields (interp-obj-fields (rest fs) env store)
+                            [ObjException (exn-val store) (ObjException exn-val store)]
+                            [ObjFields (fields store) (ObjFields (cons (fieldV name value) fields) store)])])])))
+
+
 ;; interp-env : CExp Env Store -> CVal
 (define (interp-env (expr : CExp) (env : Env) (store : Store)) : AnswerC
   (begin
@@ -59,6 +83,8 @@
 
     [CTrue () (ValueA (VTrue) store)]
     [CFalse () (ValueA (VFalse) store)]
+    ; is not actually used as a value
+    [CUndefined () (ValueA (VUndefined) store)]
       
     [CPass () (ValueA (VUndefined) store)]
 
@@ -118,8 +144,19 @@
                                           store)])]
     [CExcept (type body)
              (interp-env body env store)]
-      
+    [CSet (id value)
+          (local ([define loc (lookup id env)])
+            (if (= -1 loc)
+                (interp-error (string-append "Unbound identifier: " (symbol->string id)) store)
+                (type-case AnswerC (interp-env value env store)
+                  [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                  [ValueA (val store)
+                          (begin
+                            (hash-set! store loc val)
+                            (ValueA val store))])))]
+    
     [else (begin
+            (display expr)
             (display "WHAAAT\n\n")
             (ValueA (VFalse) store))]))
   

@@ -14,13 +14,13 @@
   (run-python port))
 
 (define (run-python port)
-  (display
+  ;(display
    (interp
     (python-lib
     (desugar
     (get-structured-python
       (parse-python/port port python-path)))))
-   ))
+   );)
 
 ;  (interp
 ;    (python-lib
