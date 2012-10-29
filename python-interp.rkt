@@ -49,8 +49,8 @@
 ;; interp-env : CExp Env Store -> CVal
 (define (interp-env (expr : CExp) (env : Env) (store : Store)) : AnswerC
   (begin
-    (display expr)
-    (display "\n\n")
+    ;(display expr)
+    ;(display "\n\n")
     
     (type-case CExp expr
     [CInt (n) (ValueA (VInt n) store)]
@@ -59,6 +59,8 @@
 
     [CTrue () (ValueA (VTrue) store)]
     [CFalse () (ValueA (VFalse) store)]
+      
+    [CPass () (ValueA (VUndefined) store)]
 
     [CError (e) (interp-error (to-string (interp-env e env store)) store)]
 
@@ -114,6 +116,8 @@
                               (interp-env (first excepts)
                                           env
                                           store)])]
+    [CExcept (type body)
+             (interp-env body env store)]
       
     [else (begin
             (display "WHAAAT\n\n")
@@ -146,6 +150,10 @@
                       ['len (type-case CVal value
                               [VStr (s) (VInt (string-length s))]
                               [else (VUndefined)])]
+                      ; numbers
+                      ['USub (type-case CVal value
+                               [VInt (n) (VInt (- 0 n))]
+                               [else (VUndefined)])]
                       ['Not (type-case CVal value
                               [VTrue () (VFalse)]
                               [VFalse () (VTrue)]
@@ -187,23 +195,62 @@
               (VTrue)
               (VFalse))
              store)]
+    
+    ['FloorDiv
+     (type-case CVal val1
+       [VInt (n) (let ([n1 n])
+                   (type-case CVal val2
+                     [VInt (n) (let ([n2 n])
+                                 (if (= 0 n2)
+                                     (interp-error "Division by zero" store)
+                                     (ValueA (VInt (/ n1 n2)) store)))]
+                     [else (interp-error "Bad arguments for /" store)]))]
+       [else (interp-error "Bad arguments for /" store)])]
+    ['Mod
+     (type-case CVal val1
+       [VInt (n) (let ([n1 n])
+                   (type-case CVal val2
+                     [VInt (n) (let ([n2 n])
+                                 (if (= 0 n2)
+                                     (interp-error "Division by zero" store)
+                                     (ValueA (VInt (modulo n1 n2)) store)))]
+                     [else (interp-error "Bad arguments for %" store)]))]
+       [else (interp-error "Bad arguments for %" store)])]
+    ['Div
+     (type-case CVal val1
+       [VInt (n) (let ([n1 n])
+                   (type-case CVal val2
+                     [VInt (n) (let ([n2 n])
+                                 (if (= 0 n2)
+                                     (interp-error "Division by zero" store)
+                                     (ValueA (VInt (/ n1 n2)) store)))]
+                     [else (interp-error "Bad arguments for /" store)]))]
+       [else (interp-error "Bad arguments for /" store)])]
+    ['Eq
+     (ValueA (if (equal? val1 val2)
+                         (VTrue)
+                         (VFalse)) store)]
+    ['NotEq
+     (ValueA (if (equal? val1 val2)
+                 (VFalse)
+                 (VTrue)) store)]
     ['string+
      (ValueA (VStr (string-append
                     (VStr-s val1)
                     (VStr-s val2)))
              store)]
-    ['num+
+    ['Add
      (ValueA (VInt (+
                     (VInt-n val1)
                     (VInt-n val2)))
              store)]
-    ['num-
+    ['Sub
      (ValueA (VInt (-
                     (VInt-n val1)
                     (VInt-n val2)))
              store)]
     ['== (ValueA (if (equal? val1 val2) (VTrue) (VFalse)) store)]
-    ['> (type-case CVal val1
+    ['Gt (type-case CVal val1
           [VInt (n) (let ([n1 n])
                       (type-case CVal val2
                         [VInt (n) (ValueA
@@ -222,7 +269,7 @@
                   [else (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
                                       store)])])]
     
-    ['< (type-case CVal val1
+    ['Lt (type-case CVal val1
           [VInt (n) (let ([n1 n])
                       (type-case CVal val2
                         [VInt (n) (ValueA (if (< (VInt-n val1) (VInt-n val2))
