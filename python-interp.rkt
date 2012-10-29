@@ -362,11 +362,33 @@
                                            appEnv
                                            store))])))))
 
+
+;; print-object-exn : CVal (listof FieldV)
+;; checks for a message field, and outputs the message if exists, value of the object if not
+(define (print-object-exn (val : CVal) (fields : (listof FieldV)))
+  (if (empty? fields)
+      (error 'interp (pretty val))
+      (type-case FieldV (first fields)
+        [fieldV (name value)
+                (if (equal? name "message")
+                    (error 'interp (pretty value))
+                    (print-object-exn val (rest fields)))])))
+
+;; print-error : CVal Store
+;; prints the exception output given the exn-val
+(define (print-error (exn-val : CVal) (store : Store))
+  (type-case CVal exn-val
+    [VObject (fields) (print-object-exn exn-val fields)]
+    [else (error 'interp (pretty exn-val))]))
+
+
 ;; interp : CExp -> CVal
 (define (interp expr)
-  (interp-env expr empty (make-hash empty)))
-
-
+  ; catch exception at top level
+  (type-case AnswerC (interp-env expr empty (make-hash empty))
+    [ExceptionA (exn-val store)
+                (print-error exn-val store)]
+    [ValueA (val store) val]))
 
 
 

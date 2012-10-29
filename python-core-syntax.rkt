@@ -75,10 +75,10 @@ ParselTongue.
 
 (define (interp-error str store)
   (ExceptionA (VObject (list (fieldV "message" (VStr str))
-                             (fieldV "type" (VStr "PSL")))) store))
+                             (fieldV "type" (VStr "Python")))) store))
 (define (desugar-error str)
   (CError (CObject (list (fieldC "message" (CStr str))
-                         (fieldC "type" (CStr "PSL"))))))
+                         (fieldC "type" (CStr "Python"))))))
 
 
 
