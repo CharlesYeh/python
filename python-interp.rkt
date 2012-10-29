@@ -263,6 +263,14 @@
                                      (ValueA (VInt (/ n1 n2)) store)))]
                      [else (interp-error "Bad arguments for /" store)]))]
        [else (interp-error "Bad arguments for /" store)])]
+    ['Mult
+     (type-case CVal val1
+       [VInt (n) (let ([n1 n])
+                   (type-case CVal val2
+                     [VInt (n) (let ([n2 n])
+                                 (ValueA (VInt (* n1 n2)) store))]
+                     [else (interp-error "Bad arguments for *" store)]))]
+       [else (interp-error "Bad arguments for *" store)])]
     ['Eq
      (ValueA (if (equal? val1 val2)
                          (VTrue)
@@ -271,11 +279,6 @@
      (ValueA (if (equal? val1 val2)
                  (VFalse)
                  (VTrue)) store)]
-    ['string+
-     (ValueA (VStr (string-append
-                    (VStr-s val1)
-                    (VStr-s val2)))
-             store)]
     ['Add
      (ValueA (VInt (+
                     (VInt-n val1)
@@ -286,7 +289,6 @@
                     (VInt-n val1)
                     (VInt-n val2)))
              store)]
-    ['== (ValueA (if (equal? val1 val2) (VTrue) (VFalse)) store)]
     ['Gt (type-case CVal val1
           [VInt (n) (let ([n1 n])
                       (type-case CVal val2

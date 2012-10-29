@@ -3,6 +3,6 @@ racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_floats.py
 
 
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda2.py
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda1.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/simple-and-rebinding.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda2.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/unbound-local.py
