@@ -102,6 +102,7 @@
     ; evaluate
     [ValueA (value store)
             (ValueA (case op
+#|
                       ['print (begin
                                 (display (pretty value))
                                 value)]
@@ -112,7 +113,15 @@
                                 [VClosure (args body env) (VStr "function")]
                                 [VTrue () (VStr "boolean")]
                                 [VFalse () (VStr "boolean")]
-                                [VUndefined () (VStr "undefined")])])
+                                [VUndefined () (VStr "undefined")])]
+|#
+                      ['Not (type-case CVal value
+                              [VTrue () (VFalse)]
+                              [VFalse () (VTrue)]
+                              [else (VUndefined)])]
+                      [else (begin
+                              (display op)
+                              value)])
                     store)]))
 
 ;; interp-app : ExprC (listof ExprC) Env Store -> AnswerC
@@ -154,3 +163,8 @@
 ;; interp : CExp -> CVal
 (define (interp expr)
   (interp-env expr (list) (hash (list))))
+
+
+
+
+

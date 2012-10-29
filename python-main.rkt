@@ -14,9 +14,11 @@
   (run-python port))
 
 (define (run-python port)
-  (display (desugar
+  (display
+   (interp
+    (desugar
     (get-structured-python
-      (parse-python/port port python-path)))))
+      (parse-python/port port python-path))))))
 
 ;  (interp
 ;    (python-lib

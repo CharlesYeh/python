@@ -29,6 +29,14 @@ structure that you define in python-syntax.rkt
     
     [(list a ...) (PySeq (map get-structured-python a))]
     
+    [(hash-table ('nodetype "FunctionDef")
+                 ('name name)
+                 ('args args)
+                 ('body body)
+                 ('decorator_list decorator_list))
+     (PyFunc (map get-structured-python args)
+             (get-structured-python body))]
+    
     ; loops
     [(hash-table ('nodetype "For")
                  ('target target)
@@ -112,6 +120,15 @@ structure that you define in python-syntax.rkt
                 (get-structured-python left)
                 (map get-structured-python comparators))]
     
+    [(hash-table ('nodetype "Assign")
+                 ('targets targets)
+                 ('value value))
+     ; assume is id for now
+       (PyAssign (IdLHS (PyId-x
+                         (get-structured-python
+                          (first targets))))
+                 (get-structured-python value))]
+    
     ; primitives
     [(hash-table ('nodetype "Num")
                  ('n n))
@@ -125,30 +142,3 @@ structure that you define in python-syntax.rkt
          (display "\n")
          (error 'parse "Haven't handled a case yet"))]))
 
-#|
-
-#hasheq((body . (#hasheq((value . #hasheq((op . #hasheq((nodetype . Div)))
-                                          (nodetype . BinOp)
-                                          (left . #hasheq((n . 5.0)
-                                                          (nodetype . Num)))
-                                          (right . #hasheq((n . 0.0) (nodetype . Num)))))
-                         (nodetype . Expr))))
-        (nodetype . TryExcept)
-        (orelse . (#hasheq((exc . #hasheq((args . (#hasheq((s . 5.0 / 0.0 didn't raise ZeroDivisionError)
-                                                           (nodetype . Str))))
-                                          (func . #hasheq((id . Exception)
-                                                          (ctx . #hasheq((nodetype . Load)))
-                                                          (nodetype . Name)))
-                                          (nodetype . Call)
-                                          (keywords . ())
-                                          (kwargs . )
-                                          (starargs . )))
-                           (cause . )
-                           (nodetype . Raise))))
-        (handlers . (#hasheq((name . )
-                             (type . #hasheq((id . ZeroDivisionError)
-                                             (ctx . #hasheq((nodetype . Load)))
-                                             (nodetype . Name)))
-                             (body . (#hasheq((nodetype . Pass))))
-                             (nodetype . ExceptHandler)))))
-|#
