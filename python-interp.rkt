@@ -3,6 +3,8 @@
 (require "python-core-syntax.rkt"
          "python-primitives.rkt")
 
+(require (typed-in racket (string-length : (string -> number))))
+
 ;; new-loc : -> Location
 (define new-loc
   (let ([n (box 0)])
@@ -37,9 +39,20 @@
               [none () -1])
             (lookup-defined name (rest env) store)))))
 
+(define (get-truth-value value)
+  (type-case CVal value
+    [VTrue () #t]
+    [VInt (n) (not (= 0 n))]
+    [VStr (s) (not (equal? s ""))]
+    [else #f]))
+
 ;; interp-env : CExp Env Store -> CVal
 (define (interp-env (expr : CExp) (env : Env) (store : Store)) : AnswerC
-  (type-case CExp expr
+  (begin
+    (display expr)
+    (display "\n\n")
+    
+    (type-case CExp expr
     [CInt (n) (ValueA (VInt n) store)]
     [CFloat (n) (ValueA (VInt n) store)]
     [CStr (s) (ValueA (VStr s) store)]
@@ -53,12 +66,7 @@
          (type-case AnswerC (interp-env i env store)
            [ExceptionA (exn-val store) (ExceptionA exn-val store)]
            [ValueA (value store)
-                   (if (type-case CVal value
-                         [VTrue () #t]
-                         [VInt (n) (not (= 0 n))]
-                         [VStr (s) (not (equal? s ""))]
-                         [else #f])
-                       
+                   (if (get-truth-value value)
                        (interp-env t env store)
                        (interp-env e env store))])]
 
@@ -83,7 +91,9 @@
                           (interp-env body use-env store)))])]
 
     [CSeq (e1 e2)
-      (begin (interp-env e1 env store) (interp-env e2 env store))]
+          (type-case AnswerC (interp-env e1 env store)
+            [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+            [ValueA (value store) (interp-env e2 env store)])]
 
     [CApp (fun arges) (interp-app fun arges env store)]
 
@@ -91,8 +101,25 @@
 
     [CPrim1 (prim arg)
             (interp-prim1 prim arg env store)]
-
-    [else (ValueA (VTrue) store)]))
+    
+    [CPrim2 (prim left right)
+            (interp-prim2 prim left right env store)]
+    
+    [CTryExcept (body excepts)
+                (type-case AnswerC (interp-env body env store)
+                  [ValueA (value store) (ValueA value store)]
+                  [ExceptionA (exn-val store)
+                              ; catch exception
+                              ;## USE THE CORRECT EXCEPT
+                              (interp-env (first excepts)
+                                          env
+                                          store)])]
+      
+    [else (begin
+            (display "WHAAAT\n\n")
+            (ValueA (VFalse) store))]))
+  
+  )
 
 ;; interp-prim1 : symbol ExprC Env Store -> Result
 ;; interprets a single argument primitive operation
@@ -102,10 +129,11 @@
     ; evaluate
     [ValueA (value store)
             (ValueA (case op
-#|
+
                       ['print (begin
                                 (display (pretty value))
                                 value)]
+#|
                       ['tagof (type-case CVal value
                                 [VStr (s) (VStr "string")]
                                 [VInt (n) (VStr "number")]
@@ -115,6 +143,9 @@
                                 [VFalse () (VStr "boolean")]
                                 [VUndefined () (VStr "undefined")])]
 |#
+                      ['len (type-case CVal value
+                              [VStr (s) (VInt (string-length s))]
+                              [else (VUndefined)])]
                       ['Not (type-case CVal value
                               [VTrue () (VFalse)]
                               [VFalse () (VTrue)]
@@ -123,6 +154,91 @@
                               (display op)
                               value)])
                     store)]))
+
+;; interp-prim2 : symbol ExprC ExprC Env Store -> Result
+;; interprets a two argument primitive operation
+(define (interp-prim2 (op : symbol) (arg1 : CExp) (arg2 : CExp) (env : Env) (store : Store)) : AnswerC
+  ; check arg 1
+  (type-case AnswerC (interp-env arg1 env store)
+    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    [ValueA (value store)
+            (local ([define val1 value])
+              (type-case AnswerC (interp-env arg2 env store)
+                [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                [ValueA (value store)
+                        (local ([define val2 value]) 
+                          (interp-prim2-helper op val1 val2 env store))]))]))
+
+;; interp-prim2-helper : symbol ValueC ValueC Env Store -> AnswerC
+;; interprets prim2 after exception checking is done in the main prim2c interpret function
+(define (interp-prim2-helper [op : symbol] [val1 : CVal] [val2 : CVal] [env : Env] [store : Store]) : AnswerC
+  (case op
+    ['Or
+     (ValueA (if
+              (or (get-truth-value val1)
+                  (get-truth-value val2))
+              (VTrue)
+              (VFalse))
+             store)]
+    ['And
+     (ValueA (if
+              (and (get-truth-value val1)
+                  (get-truth-value val2))
+              (VTrue)
+              (VFalse))
+             store)]
+    ['string+
+     (ValueA (VStr (string-append
+                    (VStr-s val1)
+                    (VStr-s val2)))
+             store)]
+    ['num+
+     (ValueA (VInt (+
+                    (VInt-n val1)
+                    (VInt-n val2)))
+             store)]
+    ['num-
+     (ValueA (VInt (-
+                    (VInt-n val1)
+                    (VInt-n val2)))
+             store)]
+    ['== (ValueA (if (equal? val1 val2) (VTrue) (VFalse)) store)]
+    ['> (type-case CVal val1
+          [VInt (n) (let ([n1 n])
+                      (type-case CVal val2
+                        [VInt (n) (ValueA
+                                   (if (> (VInt-n val1) (VInt-n val2))
+                                       (VTrue)
+                                       (VFalse))
+                                   store)]
+                        [else (interp-error (string-append "Bad arguments for >:\n"
+                                                           (string-append (pretty val1)
+                                                                          (string-append "\n"
+                                                                                         (pretty val2))))
+                                            store)]))]
+          [else (type-case CVal val2
+                  [VInt (n) (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                          store)]
+                  [else (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                      store)])])]
+    
+    ['< (type-case CVal val1
+          [VInt (n) (let ([n1 n])
+                      (type-case CVal val2
+                        [VInt (n) (ValueA (if (< (VInt-n val1) (VInt-n val2))
+                                              (VTrue)
+                                              (VFalse))
+                                          store)]
+                        [else (interp-error
+                               (string-append "Bad arguments for <:\n"
+                                              (string-append (pretty val1)
+                                                             (string-append "\n" (pretty val2))))
+                               store)]))]
+          [else (type-case CVal val2
+                  [VInt (n) (interp-error (string-append "Bad arguments for <:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                          store)]
+                  [else (interp-error (string-append "Bad arguments for <:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                      store)])])]))
 
 ;; interp-app : ExprC (listof ExprC) Env Store -> AnswerC
 ;; interprets function applications, checking for exceptions
