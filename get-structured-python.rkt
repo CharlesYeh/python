@@ -37,6 +37,12 @@ structure that you define in python-syntax.rkt
      (PyFunc (map get-structured-python args)
              (get-structured-python body))]
     
+    [(hash-table ('nodetype "Lambda")
+                 ('args args)
+                 ('body body))
+     (PyFunc (map get-structured-python args)
+             (get-structured-python body))]
+    
     ; loops
     [(hash-table ('nodetype "For")
                  ('target target)

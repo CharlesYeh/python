@@ -25,12 +25,16 @@ that calls the primitive `print`.
 (define true-val
   (CTrue))
 
+(define false-val
+  (CFalse))
+
 (define-type LibBinding
   [bind (left : symbol) (right : CExp)])
 
 (define lib-functions
   (list (bind 'print print-lambda)
         (bind 'True true-val)
+        (bind 'False false-val)
         (bind '___assertTrue assert-true-lambda)
 
 ))
