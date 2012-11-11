@@ -67,7 +67,7 @@ structure that you define in python-syntax.rkt
              (get-structured-python body))]
     
     [(hash-table ('nodetype "Return")
-                 ('value value)
+                 ('value value))
      (PyReturn (get-structured-python value))]
     [(hash-table ('nodetype "Break")) (PyBreak)]
     [(hash-table ('nodetype "Continue")) (PyContinue)]
@@ -135,7 +135,7 @@ structure that you define in python-syntax.rkt
                  ('ctx _)        ;; ignoring ctx for now
                  ('id id))
      (PyId (string->symbol id))]
-    [(hash-table ('nodetype "Name")
+    #;[(hash-table ('nodetype "Name")
                  ('ctx _)        ;; ignoring ctx for now
                  ('id "None"))
      (PyNone)]
@@ -201,9 +201,9 @@ structure that you define in python-syntax.rkt
     [(hash-table ('nodetype "Dict")
                  ('keys keys)
                  ('values values))
-     (let ([h (make-hash)])
+     (local ([define htable (make-hash)])
        (begin
-         (map (lambda (k v) (hash-set! hs (get-structured-python k)
+         (map (lambda (k v) (hash-set! htable (get-structured-python k)
                                           (get-structured-python v)))
               keys values)
          (PyDict htable)))]

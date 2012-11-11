@@ -26,12 +26,16 @@
   
   ; data types
   [PyInt (n : number)]
+  [PyStr (s : string)]
   [PyFloat (n : number)]
+  [PyComplex (n : number)]
   [PyTuple (values : (listof PyExpr))]
   [PyList (values : (listof PyExpr))]
-  [PyStr (s : string)]
-  
+  [PyDict (htable : (hashof PyExpr PyExpr))]
   [PyObject (fields : (listof FieldP))]
+
+  [PyGlobal (vars : (listof symbol))]
+  [PyNonlocal (vars : (listof symbol))]
   
   [PyTrue]
   [PyFalse]
@@ -41,11 +45,6 @@
   
   [PyCompare (ops : (listof symbol)) (left : PyExpr) (args : (listof PyExpr))]
   [PyPrim (op : symbol) (args : (listof PyExpr))]
-  
-  [PyPreInc (id : symbol)]
-  [PyPostInc (id : symbol)]
-  [PyPreDec (id : symbol)]
-  [PyPostDec (id : symbol)]
   
   ; error control
   [PyTryExcept (body : PyExpr) (excepts : (listof PyExpr))]
@@ -61,6 +60,7 @@
   [PyForElse (id : symbol) (seq : PyExpr) (body : PyExpr) (else : PyExpr)]
 
   [PyPass]
+  [PyReturn (value : PyExpr)]
   [PyBreak]
   [PyContinue])
 
