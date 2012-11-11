@@ -56,14 +56,21 @@ structure that you define in python-syntax.rkt
                  ('args args)
                  ('body body)
                  ('decorator_list decorator_list))
-     (PyFunc (map get-structured-python args)
-             (get-structured-python body))]
+     (PyAssign (IdLHS (string->symbol name))
+               (PyFunc (map get-structured-python args)
+                       (get-structured-python body)))]
     
     [(hash-table ('nodetype "Lambda")
                  ('args args)
                  ('body body))
      (PyFunc (get-structured-python args)
              (get-structured-python body))]
+    
+    [(hash-table ('nodetype "Return")
+                 ('value value)
+     (PyReturn (get-structured-python value))]
+    [(hash-table ('nodetype "Break")) (PyBreak)]
+    [(hash-table ('nodetype "Continue")) (PyContinue)]
     
     ; loops
     [(hash-table ('nodetype "For")
@@ -90,6 +97,13 @@ structure that you define in python-syntax.rkt
      (PyIf (get-structured-python test)
            (get-structured-python body)
            (get-structured-python orelse))]
+    [(hash-table ('nodetype "Compare")
+                 ('ops ops)
+                 ('comparators comparators)
+                 ('left left))
+     (PyCompare (map (lambda (a) (string->symbol (hash-ref a 'nodetype))) ops)
+                (get-structured-python left)
+                (map get-structured-python comparators))]
     
     ; error control
     [(hash-table ('nodetype "TryExcept")
@@ -121,6 +135,10 @@ structure that you define in python-syntax.rkt
                  ('ctx _)        ;; ignoring ctx for now
                  ('id id))
      (PyId (string->symbol id))]
+    [(hash-table ('nodetype "Name")
+                 ('ctx _)        ;; ignoring ctx for now
+                 ('id "None"))
+     (PyNone)]
     
     ; operators
     [(hash-table ('nodetype "UnaryOp")
@@ -140,13 +158,6 @@ structure that you define in python-syntax.rkt
                  ('values values))
      (local ([define optype (string->symbol (hash-ref op 'nodetype))])
        (PyPrim optype (map get-structured-python values)))]
-    [(hash-table ('nodetype "Compare")
-                 ('ops ops)
-                 ('comparators comparators)
-                 ('left left))
-     (PyCompare (map (lambda (a) (string->symbol (hash-ref a 'nodetype))) ops)
-                (get-structured-python left)
-                (map get-structured-python comparators))]
     
     [(hash-table ('nodetype "Assign")
                  ('targets targets)
@@ -157,14 +168,46 @@ structure that you define in python-syntax.rkt
                           (first targets))))
                  (get-structured-python value))]
     
+    [(hash-table ('nodetype "Nonlocal")
+                 ('names names))
+     (PyNonlocal (map string->symbol names))]
+    [(hash-table ('nodetype "Global")
+                 ('names names))
+     (PyGlobal (map string->symbol names))]
+
     ; primitives
     [(hash-table ('nodetype "Num")
                  ('n n))
-     (PyInt n)]
+     (match n
+       [(hash-table ('nodetype "Complex")
+                    ('value cn))
+        (PyComplex (string->number (cond
+                                     [(equal? (string-replace cn "+" "*") cn)
+                                      (string-replace cn "j" "i")]
+                                     [else (string-append "0+" (string-replace cn "j" "i"))])))]
+       [else (PyInt n)])]
     [(hash-table ('nodetype "Str")
                  ('s s))
      (PyStr s)]
-    
+    [(hash-table ('nodetype "Tuple")
+                 ('ctx ctx)
+                 ('elts elts))
+     (PyTuple
+       (map (get-structured-python elts)))]
+    [(hash-table ('nodetype "List")
+                 ('elts elts)
+                 ('ctx ctx))
+     (PyList #t (map get-structured-python elts))]
+    [(hash-table ('nodetype "Dict")
+                 ('keys keys)
+                 ('values values))
+     (let ([h (make-hash)])
+       (begin
+         (map (lambda (k v) (hash-set! hs (get-structured-python k)
+                                          (get-structured-python v)))
+              keys values)
+         (PyDict htable)))]
+
     [_ (begin
          (display pyjson)
          (display "\n")
