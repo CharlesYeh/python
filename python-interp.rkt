@@ -177,7 +177,7 @@
                       ['print (begin
                                 (display (pretty value))
                                 value)]
-#|
+
                       ['tagof (type-case CVal value
                                 [VStr (s) (VStr "string")]
                                 [VInt (n) (VStr "number")]
@@ -185,11 +185,15 @@
                                 [VClosure (args body env) (VStr "function")]
                                 [VTrue () (VStr "boolean")]
                                 [VFalse () (VStr "boolean")]
-                                [VUndefined () (VStr "undefined")])]
+                                [VUndefined () (VStr "undefined")]
+                                [VList (fields) (VStr "list")]
+                                [VDict (htable) (VStr "hash")])]
                       ['len (type-case CVal value
                               [VStr (s) (VInt (string-length s))]
+                              [VObject (fields) (VInt (length fields))]
+                              [VList (fields) (VInt (length fields))]
+                              [VDict (htable) (VInt (length (hash-keys htable)))]
                               [else (VUndefined)])]
-|#
                       ; numbers
                       ['USub (type-case CVal value
                                [VInt (n) (VInt (- 0 n))]
@@ -393,5 +397,4 @@
                 (print-error exn-val store)]
     [ValueA (val store) val]))
 
-
-
+ 

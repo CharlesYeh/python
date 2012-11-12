@@ -59,7 +59,10 @@ ParselTongue.
   
   [VClosure (args : (listof symbol)) (body : CExp) (env : Env)]
   
-  [VObject (fields : (listof FieldV))])
+  [VObject (fields : (listof FieldV))]
+  [VList (fields : (listof CVal))]
+  [VDict (htable : (hashof CVal CVal))]
+)
 
 ; the combination value with store, also used to keep track of exceptions
 (define-type AnswerC

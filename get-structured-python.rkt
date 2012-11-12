@@ -31,7 +31,7 @@ structure that you define in python-syntax.rkt
                  ('args args-list)
                  ('func func-expr))
        (PyApp (get-structured-python func-expr)
-            (map get-structured-python args-list))]
+         (map get-structured-python args-list))]
     
     [(list a ...) (PySeq (map get-structured-python a))]
     
@@ -45,6 +45,11 @@ structure that you define in python-syntax.rkt
                  ('kw_defaults kw_defaults)
                  ('kwonlyargs kwonlyargs))
      (map get-structured-python args)]
+    [(hash-table ('nodetype "Attribute")
+                 ('value value)
+                 ('attr attr)
+                 ('ctx ctx))
+     (DotLHS (get-structured-python value) (string->symbol attr))]
     
     [(hash-table ('nodetype "arg")
                  ('arg arg)
@@ -55,10 +60,20 @@ structure that you define in python-syntax.rkt
                  ('name name)
                  ('args args)
                  ('body body)
-                 ('decorator_list decorator_list))
+                 ('decorator_list decorator_list)
+                 ('returns returns))
      (PyAssign (IdLHS (string->symbol name))
                (PyFunc (map get-structured-python args)
                        (get-structured-python body)))]
+    #;[(hash-table ('nodetype "ClassDef")
+                 ('bases bases)
+                 ('keywords keywords)
+                 ('starargs starargs)
+                 ('kwargs kwargs)
+                 ('body body)
+                 ('decorator_list decorator_list))
+     (PyAssign (IdLHS (string->symbol name))
+               (PyClass (get-structured-python body)))]
     
     [(hash-table ('nodetype "Lambda")
                  ('args args)
@@ -197,7 +212,7 @@ structure that you define in python-syntax.rkt
     [(hash-table ('nodetype "List")
                  ('elts elts)
                  ('ctx ctx))
-     (PyList #t (map get-structured-python elts))]
+     (PyList (map get-structured-python elts))]
     [(hash-table ('nodetype "Dict")
                  ('keys keys)
                  ('values values))

@@ -17,16 +17,49 @@ primitives here.
 (define (pretty arg)
   (type-case CVal arg
     [VInt (n) (to-string n)]
-    [VStr (s) s]
+    [VStr (s) (string-append (string-append "'" s) "'")]
     
     [VTrue () "true"]
     [VFalse () "false"]
     
     [VUndefined () (error 'pretty "Unbound")]
+    [VList (fields) (pretty-list fields)]
+    [VDict (htable) (pretty-dict htable)]
     
     [VClosure (env args body) (error 'prim "Can't print closures yet")]
     [VObject (fields) (error 'prim "Can't print objs yet")]))
   
+(define (pretty-list arg)
+  (foldl
+    (lambda (item str)
+      (string-append
+        str
+        (string-append ", "
+                       (pretty item))))
+    (pretty (first arg))
+    (rest arg)))
+
+(define (pretty-dict-pair dict key)
+  (string-append
+   (string-append
+    (pretty key)
+    ": ")
+   (pretty (some-v (hash-ref dict key)))))
+
+(define (pretty-dict arg)
+  (local ([define keys (hash-keys arg)])
+   (string-append
+    (string-append
+     "{"
+     (foldl
+      (lambda (key str)
+        (string-append
+         (string-append str
+                        ", ")
+         (pretty-dict-pair arg key)))
+     (pretty-dict-pair arg (first keys))
+     (rest keys)))
+   "}")))
 
 (define (print arg)
   (display (pretty arg)))

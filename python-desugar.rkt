@@ -51,12 +51,6 @@
                        (desugar-helper (first args))
                        (rest args)))]
     
-    ; EVAN: Do these exist in python?
-    #;[PyPreInc (id) ...]
-    #;[PyPostInc (id) ...]
-    #;[PyPreDec (id) ...]
-    #;[PyPostDec (id) ...]
-    
     ; error control
     [PyTryExcept (body excepts) (CTryExcept (desugar-helper body)
                                             (map desugar-helper excepts))]

@@ -28,6 +28,20 @@ that calls the primitive `print`.
          (CTrue)
          (CError (CStr "Assert failed")))))
 
+(define assert-is-lambda
+  (CFunc (list 'arg1 'arg2)
+    (CIf (CPrim2 'Eq (CId 'arg1) (CId 'arg2))
+         (CTrue)
+         (CError (CStr "Assert failed")))))
+
+(define callable-lambda
+  (CFunc (list 'arg1)
+    (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function"))))
+
+(define len-lambda
+  (CFunc (list 'arg1)
+    (CPrim1 'len (CId 'arg1))))
+
 #;(define len
   (CFunc (list 'the-list)
          (CPrim1 'len (CId 'the-list))))
@@ -43,12 +57,13 @@ that calls the primitive `print`.
 
 (define lib-functions
   (list (bind 'print print-lambda)
-        ;(bind 'len len)
         (bind 'True true-val)
         (bind 'False false-val)
         (bind '___assertTrue assert-true-lambda)
         (bind '___assertEqual assert-equal-lambda)
-
+        (bind '___assertIs assert-is-lambda)
+        (bind 'len len-lambda)
+        (bind 'callable callable-lambda)
 ))
 
 (define (python-lib expr)
