@@ -71,6 +71,321 @@
                             [ObjException (exn-val store) (ObjException exn-val store)]
                             [ObjFields (fields store) (ObjFields (cons (fieldV name value) fields) store)])])])))
 
+;; ListFields
+;; used to allow the object field interpret to return an exception
+(define-type ListFields
+  [LFields (fields : (listof CVal)) (store : Store)]
+  [LException (exn-val : CVal) (store : Store)])
+
+(define (interp-list-exp (exprs : (listof CExp)) (env : Env) (store : Store)) : ListFields
+  (cond
+    [(= 0 (length exprs))
+     (LFields empty store)]
+    [(= 1 (length exprs))
+     (type-case AnswerC (interp-env (first exprs) env store)
+       [ExceptionA (exn-val store)
+                   (LException exn-val store)]
+       [ValueA (value store)
+               (LFields (list value) store)])]
+    [else
+     (type-case AnswerC (interp-env (first exprs) env store)
+       [ExceptionA (exn-val store)
+                   (LException exn-val store)]
+       [ValueA (value store)
+               (type-case ListFields (interp-list-exp (rest exprs) env store)
+                 [LException (exn-val store)
+                             (LException exn-val store)]
+                 [LFields (fields store)
+                          (LFields (cons value fields) store)])])]))
+
+(define (interp-dict-exp (old-hash : (hashof CExp CExp))
+                         (new-hash : (hashof CVal CVal))
+                         (exprs : (listof CExp)) (env : Env) (store : Store)) : AnswerC
+  (cond
+    [(= 0 (length exprs)) (ValueA (VDict new-hash) store)]
+    [else
+     ; add current (key -> value) pair
+     (local ([define key (first exprs)])
+       ; interp key
+       (type-case AnswerC (interp-env key env store)
+         [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+         [ValueA (value store)
+                 (local ([define key-val value])
+                   ; interp value
+                   (type-case AnswerC (interp-env (some-v (hash-ref old-hash key)) env store)
+                     [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                     [ValueA (value store)
+                             ; recurse to rest of pairs
+                             (interp-dict-exp old-hash
+                                              new-hash
+                                              (rest exprs) env store)]))]))]))
+
+
+;; interp-prim1 : symbol ExprC Env Store -> Result
+;; interprets a single argument primitive operation
+(define (interp-prim1 [op : symbol] [arg : CExp] [env : Env] [store : Store]) : AnswerC
+  (type-case AnswerC (interp-env arg env store)
+    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    ; evaluate
+    [ValueA (value store)
+            (ValueA (case op
+                      
+                      ['print (begin
+                                (display (pretty value))
+                                value)]
+                      
+                      ['to-string (VStr (pretty value))]
+                      
+                      ['tagof (type-case CVal value
+                                [VStr (s) (VStr "string")]
+                                [VInt (n) (VStr "number")]
+                                [VFloat (n) (VStr "number")]
+                                [VObject (fields) (VStr "object")]
+                                [VClosure (args body env) (VStr "function")]
+                                [VTrue () (VStr "boolean")]
+                                [VFalse () (VStr "boolean")]
+                                [VUndefined () (VStr "undefined")]
+                                [VList (fields) (VStr "list")]
+                                [VDict (htable) (VStr "hash")])]
+                      ['len (type-case CVal value
+                              [VStr (s) (VInt (string-length s))]
+                              [VObject (fields) (VInt (length fields))]
+                              [VList (fields) (VInt (length fields))]
+                              [VDict (htable) (VInt (length (hash-keys htable)))]
+                              [else (VUndefined)])]
+                      ; numbers
+                      ['USub (type-case CVal value
+                               [VInt (n) (VInt (- 0 n))]
+                               [else (VUndefined)])]
+                      ['Not (type-case CVal value
+                              [VTrue () (VFalse)]
+                              [VFalse () (VTrue)]
+                              [else (VUndefined)])]
+                      [else (begin
+                              (display "HANDLE PRIM1: \n")
+                              (display op)
+                              value)])
+                    store)]))
+
+;; interp-prim2 : symbol ExprC ExprC Env Store -> Result
+;; interprets a two argument primitive operation
+(define (interp-prim2 (op : symbol) (arg1 : CExp) (arg2 : CExp) (env : Env) (store : Store)) : AnswerC
+  ; check arg 1
+  (type-case AnswerC (interp-env arg1 env store)
+    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    [ValueA (value store)
+            (local ([define val1 value])
+              (type-case AnswerC (interp-env arg2 env store)
+                [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                [ValueA (value store)
+                        (local ([define val2 value]) 
+                          (interp-prim2-helper op val1 val2 env store))]))]))
+
+;; interp-prim2-helper : symbol ValueC ValueC Env Store -> AnswerC
+;; interprets prim2 after exception checking is done in the main prim2c interpret function
+(define (interp-prim2-helper [op : symbol] [val1 : CVal] [val2 : CVal] [env : Env] [store : Store]) : AnswerC
+  (case op
+    ; BOOLEAN PRIM
+    ['Or
+     (ValueA (if
+              (or (get-truth-value val1)
+                  (get-truth-value val2))
+              (VTrue)
+              (VFalse))
+             store)]
+    ['And
+     (ValueA (if
+              (and (get-truth-value val1)
+                  (get-truth-value val2))
+              (VTrue)
+              (VFalse))
+             store)]
+    
+    ; NUMBER PRIM
+    ['FloorDiv
+     (type-case CVal val1
+       [VInt (n) (let ([n1 n])
+                   (type-case CVal val2
+                     [VInt (n) (let ([n2 n])
+                                 (if (= 0 n2)
+                                     (interp-error "Division by zero" store)
+                                     (ValueA (VInt (/ n1 n2)) store)))]
+                     [else (interp-error "Bad arguments for /" store)]))]
+       [else (interp-error "Bad arguments for /" store)])]
+    ['Mod
+     (type-case CVal val1
+       [VInt (n) (let ([n1 n])
+                   (type-case CVal val2
+                     [VInt (n) (let ([n2 n])
+                                 (if (= 0 n2)
+                                     (interp-error "Division by zero" store)
+                                     (ValueA (VInt (modulo n1 n2)) store)))]
+                     [else (interp-error "Bad arguments for %" store)]))]
+       [else (interp-error "Bad arguments for %" store)])]
+    ['Div
+     (type-case CVal val1
+       [VInt (n) (let ([n1 n])
+                   (type-case CVal val2
+                     [VInt (n) (let ([n2 n])
+                                 (if (= 0 n2)
+                                     (interp-error "Division by zero" store)
+                                     (ValueA (VInt (/ n1 n2)) store)))]
+                     [else (interp-error "Bad arguments for /" store)]))]
+       [else (interp-error "Bad arguments for /" store)])]
+    ['Mult
+     (type-case CVal val1
+       [VInt (n) (let ([n1 n])
+                   (type-case CVal val2
+                     [VInt (n) (let ([n2 n])
+                                 (ValueA (VInt (* n1 n2)) store))]
+                     [else (interp-error "Bad arguments for *" store)]))]
+       [else (interp-error "Bad arguments for *" store)])]
+    ['Add
+     (ValueA (VInt (+
+                    (VInt-n val1)
+                    (VInt-n val2)))
+             store)]
+    ['Sub
+     (ValueA (VInt (-
+                    (VInt-n val1)
+                    (VInt-n val2)))
+             store)]
+    
+    ; LOGICAL PRIM
+    ['Eq
+     (ValueA (if (equal? val1 val2)
+                 (VTrue)
+                 (VFalse))
+             store)]
+    ['NotEq
+     (ValueA (if (equal? val1 val2)
+                 (VFalse)
+                 (VTrue))
+             store)]
+    ['Is
+     (ValueA (if (equal? val1 val2)
+                 (VTrue)
+                 (VFalse))
+             store)]
+    ['IsNot
+     (ValueA (if (equal? val1 val2)
+                 (VFalse)
+                 (VTrue))
+             store)]
+    ['In
+     (type-case CVal val2
+       [VList (fields)
+              (ValueA
+               (if (member val1 fields)
+                   (VTrue)
+                   (VFalse))
+               store)]
+       [VDict (htable)
+              (ValueA 
+               (if (member val1 (hash-keys htable))
+                   (VTrue)
+                   (VFalse))
+               store)]
+       [else (interp-error
+              (string-append (pretty val2)
+                             " not iterable")
+              store)])]
+    ['NotIn
+     (type-case CVal val2
+       [VList (fields)
+              (ValueA
+               (if (member val1 fields)
+                   (VFalse)
+                   (VTrue))
+               store)]
+       [VDict (htable)
+              (ValueA 
+               (if (member val1 (hash-keys htable))
+                   (VFalse)
+                   (VTrue))
+               store)]
+       [else (interp-error
+              (string-append (pretty val2)
+                             " not iterable")
+              store)])]
+    
+    ; COMPARISON PRIM
+    ['Gt (type-case CVal val1
+          [VInt (n) (let ([n1 n])
+                      (type-case CVal val2
+                        [VInt (n) (ValueA
+                                   (if (> (VInt-n val1) (VInt-n val2))
+                                       (VTrue)
+                                       (VFalse))
+                                   store)]
+                        [else (interp-error (string-append "Bad arguments for >:\n"
+                                                           (string-append (pretty val1)
+                                                                          (string-append "\n"
+                                                                                         (pretty val2))))
+                                            store)]))]
+          [else (type-case CVal val2
+                  [VInt (n) (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                          store)]
+                  [else (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                      store)])])]
+    ['GtE (type-case CVal val1
+          [VInt (n) (let ([n1 n])
+                      (type-case CVal val2
+                        [VInt (n) (ValueA
+                                   (if (>= (VInt-n val1) (VInt-n val2))
+                                       (VTrue)
+                                       (VFalse))
+                                   store)]
+                        [else (interp-error (string-append "Bad arguments for >=:\n"
+                                                           (string-append (pretty val1)
+                                                                          (string-append "\n"
+                                                                                         (pretty val2))))
+                                            store)]))]
+          [else (type-case CVal val2
+                  [VInt (n) (interp-error (string-append "Bad arguments for >=:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                          store)]
+                  [else (interp-error (string-append "Bad arguments for >=:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                      store)])])]
+    
+    ['Lt (type-case CVal val1
+          [VInt (n) (let ([n1 n])
+                      (type-case CVal val2
+                        [VInt (n) (ValueA (if (< (VInt-n val1) (VInt-n val2))
+                                              (VTrue)
+                                              (VFalse))
+                                          store)]
+                        [else (interp-error
+                               (string-append "Bad arguments for <:\n"
+                                              (string-append (pretty val1)
+                                                             (string-append "\n" (pretty val2))))
+                               store)]))]
+          [else (type-case CVal val2
+                  [VInt (n) (interp-error (string-append "Bad arguments for <:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                          store)]
+                  [else (interp-error (string-append "Bad arguments for <:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                      store)])])]
+    ['LtE (type-case CVal val1
+          [VInt (n) (let ([n1 n])
+                      (type-case CVal val2
+                        [VInt (n) (ValueA (if (<= (VInt-n val1) (VInt-n val2))
+                                              (VTrue)
+                                              (VFalse))
+                                          store)]
+                        [else (interp-error
+                               (string-append "Bad arguments for <=:\n"
+                                              (string-append (pretty val1)
+                                                             (string-append "\n" (pretty val2))))
+                               store)]))]
+          [else (type-case CVal val2
+                  [VInt (n) (interp-error (string-append "Bad arguments for <=:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                          store)]
+                  [else (interp-error (string-append "Bad arguments for <=:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
+                                      store)])])]
+    [else
+     (begin
+       (display "HANDLE PRIM2: \n")
+       (display op)
+       (ExceptionA (VUndefined) store))]))
 
 ;; interp-env : CExp Env Store -> CVal
 ;; interprets the given expression, with environment and store
@@ -79,16 +394,27 @@
     ;(display expr)
     ;(display "\n\n")
     
-    (type-case CExp expr
+  (type-case CExp expr
     [CInt (n) (ValueA (VInt n) store)]
     [CFloat (n) (ValueA (VInt n) store)]
     [CStr (s) (ValueA (VStr s) store)]
-
+    [CList (fields)
+           (type-case ListFields (interp-list-exp fields env store)
+             [LException (exn-val store) (ExceptionA exn-val store)]
+             [LFields (fields store) (ValueA (VList fields)
+                                             store)])]
+    [CDict (htable)
+           (local ([define new-hash (make-hash empty)])
+             (interp-dict-exp htable
+                              new-hash
+                              (hash-keys htable)
+                              env store))]
+    
     [CTrue () (ValueA (VTrue) store)]
     [CFalse () (ValueA (VFalse) store)]
     ; is not actually used as a value
     [CUndefined () (ValueA (VUndefined) store)]
-      
+    
     [CPass () (ValueA (VUndefined) store)]
 
     [CError (e) (interp-error (to-string (interp-env e env store)) store)]
@@ -164,174 +490,6 @@
             (ValueA (VFalse) store))]))
   
   )
-
-;; interp-prim1 : symbol ExprC Env Store -> Result
-;; interprets a single argument primitive operation
-(define (interp-prim1 [op : symbol] [arg : CExp] [env : Env] [store : Store]) : AnswerC
-  (type-case AnswerC (interp-env arg env store)
-    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-    ; evaluate
-    [ValueA (value store)
-            (ValueA (case op
-
-                      ['print (begin
-                                (display (pretty value))
-                                value)]
-
-                      ['tagof (type-case CVal value
-                                [VStr (s) (VStr "string")]
-                                [VInt (n) (VStr "number")]
-                                [VObject (fields) (VStr "object")]
-                                [VClosure (args body env) (VStr "function")]
-                                [VTrue () (VStr "boolean")]
-                                [VFalse () (VStr "boolean")]
-                                [VUndefined () (VStr "undefined")]
-                                [VList (fields) (VStr "list")]
-                                [VDict (htable) (VStr "hash")])]
-                      ['len (type-case CVal value
-                              [VStr (s) (VInt (string-length s))]
-                              [VObject (fields) (VInt (length fields))]
-                              [VList (fields) (VInt (length fields))]
-                              [VDict (htable) (VInt (length (hash-keys htable)))]
-                              [else (VUndefined)])]
-                      ; numbers
-                      ['USub (type-case CVal value
-                               [VInt (n) (VInt (- 0 n))]
-                               [else (VUndefined)])]
-                      ['Not (type-case CVal value
-                              [VTrue () (VFalse)]
-                              [VFalse () (VTrue)]
-                              [else (VUndefined)])]
-                      [else (begin
-                              (display op)
-                              value)])
-                    store)]))
-
-;; interp-prim2 : symbol ExprC ExprC Env Store -> Result
-;; interprets a two argument primitive operation
-(define (interp-prim2 (op : symbol) (arg1 : CExp) (arg2 : CExp) (env : Env) (store : Store)) : AnswerC
-  ; check arg 1
-  (type-case AnswerC (interp-env arg1 env store)
-    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-    [ValueA (value store)
-            (local ([define val1 value])
-              (type-case AnswerC (interp-env arg2 env store)
-                [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-                [ValueA (value store)
-                        (local ([define val2 value]) 
-                          (interp-prim2-helper op val1 val2 env store))]))]))
-
-;; interp-prim2-helper : symbol ValueC ValueC Env Store -> AnswerC
-;; interprets prim2 after exception checking is done in the main prim2c interpret function
-(define (interp-prim2-helper [op : symbol] [val1 : CVal] [val2 : CVal] [env : Env] [store : Store]) : AnswerC
-  (case op
-    ['Or
-     (ValueA (if
-              (or (get-truth-value val1)
-                  (get-truth-value val2))
-              (VTrue)
-              (VFalse))
-             store)]
-    ['And
-     (ValueA (if
-              (and (get-truth-value val1)
-                  (get-truth-value val2))
-              (VTrue)
-              (VFalse))
-             store)]
-    
-    ['FloorDiv
-     (type-case CVal val1
-       [VInt (n) (let ([n1 n])
-                   (type-case CVal val2
-                     [VInt (n) (let ([n2 n])
-                                 (if (= 0 n2)
-                                     (interp-error "Division by zero" store)
-                                     (ValueA (VInt (/ n1 n2)) store)))]
-                     [else (interp-error "Bad arguments for /" store)]))]
-       [else (interp-error "Bad arguments for /" store)])]
-    ['Mod
-     (type-case CVal val1
-       [VInt (n) (let ([n1 n])
-                   (type-case CVal val2
-                     [VInt (n) (let ([n2 n])
-                                 (if (= 0 n2)
-                                     (interp-error "Division by zero" store)
-                                     (ValueA (VInt (modulo n1 n2)) store)))]
-                     [else (interp-error "Bad arguments for %" store)]))]
-       [else (interp-error "Bad arguments for %" store)])]
-    ['Div
-     (type-case CVal val1
-       [VInt (n) (let ([n1 n])
-                   (type-case CVal val2
-                     [VInt (n) (let ([n2 n])
-                                 (if (= 0 n2)
-                                     (interp-error "Division by zero" store)
-                                     (ValueA (VInt (/ n1 n2)) store)))]
-                     [else (interp-error "Bad arguments for /" store)]))]
-       [else (interp-error "Bad arguments for /" store)])]
-    ['Mult
-     (type-case CVal val1
-       [VInt (n) (let ([n1 n])
-                   (type-case CVal val2
-                     [VInt (n) (let ([n2 n])
-                                 (ValueA (VInt (* n1 n2)) store))]
-                     [else (interp-error "Bad arguments for *" store)]))]
-       [else (interp-error "Bad arguments for *" store)])]
-    ['Eq
-     (ValueA (if (equal? val1 val2)
-                         (VTrue)
-                         (VFalse)) store)]
-    ['NotEq
-     (ValueA (if (equal? val1 val2)
-                 (VFalse)
-                 (VTrue)) store)]
-    ['Add
-     (ValueA (VInt (+
-                    (VInt-n val1)
-                    (VInt-n val2)))
-             store)]
-    ['Sub
-     (ValueA (VInt (-
-                    (VInt-n val1)
-                    (VInt-n val2)))
-             store)]
-    ['Gt (type-case CVal val1
-          [VInt (n) (let ([n1 n])
-                      (type-case CVal val2
-                        [VInt (n) (ValueA
-                                   (if (> (VInt-n val1) (VInt-n val2))
-                                       (VTrue)
-                                       (VFalse))
-                                   store)]
-                        [else (interp-error (string-append "Bad arguments for >:\n"
-                                                           (string-append (pretty val1)
-                                                                          (string-append "\n"
-                                                                                         (pretty val2))))
-                                            store)]))]
-          [else (type-case CVal val2
-                  [VInt (n) (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                          store)]
-                  [else (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                      store)])])]
-    
-    ['Lt (type-case CVal val1
-          [VInt (n) (let ([n1 n])
-                      (type-case CVal val2
-                        [VInt (n) (ValueA (if (< (VInt-n val1) (VInt-n val2))
-                                              (VTrue)
-                                              (VFalse))
-                                          store)]
-                        [else (interp-error
-                               (string-append "Bad arguments for <:\n"
-                                              (string-append (pretty val1)
-                                                             (string-append "\n" (pretty val2))))
-                               store)]))]
-          [else (type-case CVal val2
-                  [VInt (n) (interp-error (string-append "Bad arguments for <:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                          store)]
-                  [else (interp-error (string-append "Bad arguments for <:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                      store)])])]))
 
 ;; interp-app : ExprC (listof ExprC) Env Store -> AnswerC
 ;; interprets function applications, checking for exceptions

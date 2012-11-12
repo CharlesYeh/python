@@ -34,9 +34,17 @@
     
     [PyInt (n) (CInt n)]
     [PyFloat (n) (CFloat n)]
-    #;[PyTuple (values) ...]
-    #;[PyList (values) ...]
     [PyStr (s) (CStr s)]
+    #;[PyTuple (values) ...]
+    [PyList (fields) (CList (map desugar-helper fields))]
+    [PyDict (htable) (local ([define new-hash (make-hash empty)])
+                       (begin
+                         (map (lambda (key)
+                                (hash-set! new-hash
+                                           (desugar-helper key)
+                                           (desugar-helper (some-v (hash-ref htable key)))))
+                              (hash-keys htable))
+                         (CDict new-hash)))]
     
     [PyTrue () (CTrue)]
     [PyFalse () (CFalse)]

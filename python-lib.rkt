@@ -30,21 +30,45 @@ that calls the primitive `print`.
 
 (define assert-is-lambda
   (CFunc (list 'arg1 'arg2)
-    (CIf (CPrim2 'Eq (CId 'arg1) (CId 'arg2))
-         (CTrue)
-         (CError (CStr "Assert failed")))))
+         (CIf (CPrim2 'Is (CId 'arg1) (CId 'arg2))
+              (CTrue)
+              (CError (CStr "Assert failed")))))
+
+(define assert-is-not-lambda
+  (CFunc (list 'arg1 'arg2)
+         (CIf (CPrim2 'IsNot (CId 'arg1) (CId 'arg2))
+              (CTrue)
+              (CError (CStr "Assert failed")))))
 
 (define callable-lambda
   (CFunc (list 'arg1)
-    (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function"))))
+         (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function"))))
 
 (define len-lambda
   (CFunc (list 'arg1)
-    (CPrim1 'len (CId 'arg1))))
+         (CPrim1 'len (CId 'arg1))))
 
-#;(define len
-  (CFunc (list 'the-list)
-         (CPrim1 'len (CId 'the-list))))
+(define bool-lambda
+  (CFunc (list 'arg1)
+    (CIf (CId 'arg1)
+         (CTrue)
+         (CFalse))))
+
+(define int-lambda
+  (CFunc (list 'arg1)
+    (CIf (CId 'arg1)
+         (CInt 1)
+         (CInt 0))))
+
+(define float-lambda
+  (CFunc (list 'arg1)
+    (CIf (CId 'arg1)
+         (CFloat 1)
+         (CFloat 0))))
+
+(define str-lambda
+  (CFunc (list 'arg1)
+    (CPrim1 'to-string (CId 'arg1))))
 
 (define true-val
   (CTrue))
@@ -62,8 +86,13 @@ that calls the primitive `print`.
         (bind '___assertTrue assert-true-lambda)
         (bind '___assertEqual assert-equal-lambda)
         (bind '___assertIs assert-is-lambda)
+        (bind '___assertIsNot assert-is-not-lambda)
         (bind 'len len-lambda)
         (bind 'callable callable-lambda)
+        (bind 'bool bool-lambda)
+        (bind 'int int-lambda)
+        (bind 'float float-lambda)
+        (bind 'str str-lambda)
 ))
 
 (define (python-lib expr)

@@ -17,10 +17,11 @@ primitives here.
 (define (pretty arg)
   (type-case CVal arg
     [VInt (n) (to-string n)]
+    [VFloat (n) (to-string n)]
     [VStr (s) (string-append (string-append "'" s) "'")]
     
-    [VTrue () "true"]
-    [VFalse () "false"]
+    [VTrue () "True"]
+    [VFalse () "False"]
     
     [VUndefined () (error 'pretty "Unbound")]
     [VList (fields) (pretty-list fields)]

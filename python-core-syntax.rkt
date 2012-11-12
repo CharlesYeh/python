@@ -15,6 +15,8 @@ ParselTongue.
   [CInt (n : number)]
   [CFloat (n : number)]
   [CStr (s : string)]
+  [CList (fields : (listof CExp))]
+  [CDict (htable : (hashof CExp CExp))]
   
   [CTrue]
   [CFalse]
@@ -50,6 +52,7 @@ ParselTongue.
 ; the value data type
 (define-type CVal
   [VInt (n : number)]
+  [VFloat (n : number)]
   [VStr (s : string)]
   
   [VTrue]
