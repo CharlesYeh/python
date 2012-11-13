@@ -19,7 +19,7 @@ structure that you define in python-syntax.rkt
     ;(display pyjson)
     ;(display "\n\n")
     
-    (match pyjson
+  (match pyjson
     [(hash-table ('nodetype "Module") ('body expr-list))
      (PySeq (map get-structured-python expr-list))]
     [(hash-table ('nodetype "Expr") ('value expr))
@@ -44,7 +44,9 @@ structure that you define in python-syntax.rkt
                  ('varargannotation varargannotation)
                  ('kw_defaults kw_defaults)
                  ('kwonlyargs kwonlyargs))
-     (map get-structured-python args)]
+     (if (empty? args)
+         empty
+         (map get-structured-python args))]
     [(hash-table ('nodetype "Attribute")
                  ('value value)
                  ('attr attr)
@@ -55,7 +57,14 @@ structure that you define in python-syntax.rkt
                  ('arg arg)
                  ('annotation annotation))
      (string->symbol arg)]
-                 
+    
+    ; lambdas automatically "return"
+    [(hash-table ('nodetype "Lambda")
+                 ('args args)
+                 ('body body))
+     (PyFunc (get-structured-python args)
+             (PyReturn (get-structured-python body)))]
+    ; declare a lambda, but don't automatically return
     [(hash-table ('nodetype "FunctionDef")
                  ('name name)
                  ('args args)
@@ -63,9 +72,10 @@ structure that you define in python-syntax.rkt
                  ('decorator_list decorator_list)
                  ('returns returns))
      (PyAssign (IdLHS (string->symbol name))
-               (PyFunc (map get-structured-python args)
+               (PyFunc (get-structured-python args)
                        (get-structured-python body)))]
     #;[(hash-table ('nodetype "ClassDef")
+                 ('name name)
                  ('bases bases)
                  ('keywords keywords)
                  ('starargs starargs)
@@ -74,12 +84,6 @@ structure that you define in python-syntax.rkt
                  ('decorator_list decorator_list))
      (PyAssign (IdLHS (string->symbol name))
                (PyClass (get-structured-python body)))]
-    
-    [(hash-table ('nodetype "Lambda")
-                 ('args args)
-                 ('body body))
-     (PyFunc (get-structured-python args)
-             (get-structured-python body))]
     
     [(hash-table ('nodetype "Return")
                  ('value value))
@@ -150,10 +154,6 @@ structure that you define in python-syntax.rkt
                  ('ctx _)        ;; ignoring ctx for now
                  ('id id))
      (PyId (string->symbol id))]
-    #;[(hash-table ('nodetype "Name")
-                 ('ctx _)        ;; ignoring ctx for now
-                 ('id "None"))
-     (PyNone)]
     
     ; operators
     [(hash-table ('nodetype "UnaryOp")
@@ -208,7 +208,7 @@ structure that you define in python-syntax.rkt
                  ('ctx ctx)
                  ('elts elts))
      (PyTuple
-       (map (get-structured-python elts)))]
+       (map get-structured-python elts))]
     [(hash-table ('nodetype "List")
                  ('elts elts)
                  ('ctx ctx))

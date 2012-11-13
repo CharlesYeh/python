@@ -27,6 +27,9 @@
 ;; lookup-defined : symbol Env Store -> Location
 ;; finds the location of a symbol in the environment, searching until there's a defined value
 (define (lookup-defined (name : symbol) (env : Env) (store : Store)) : Location
+  (lookup name env))
+
+#;(define (lookup-defined (name : symbol) (env : Env) (store : Store)) : Location
   (if (empty? env)
       -1
       (local ([define node (first env)])
@@ -46,6 +49,8 @@
     [VTrue () #t]
     [VInt (n) (not (= 0 n))]
     [VStr (s) (not (equal? s ""))]
+    [VList (fields) (> 0 (length fields))]
+    [VDict (htable) (> 0 (length (hash-keys htable)))]
     [else #f]))
 
 ;; ObjectFields
@@ -62,14 +67,16 @@
       ; interp first, and recurse on rest
       (type-case FieldC (first fs)
         [fieldC (name value)
-                ; check value to set to
-                (type-case AnswerC (interp-env value env store)
-                  [ExceptionA (exn-val store) (ObjException exn-val store)]
-                  [ValueA (value store)
-                          ; eval rest of fields
-                          (type-case ObjectFields (interp-obj-fields (rest fs) env store)
-                            [ObjException (exn-val store) (ObjException exn-val store)]
-                            [ObjFields (fields store) (ObjFields (cons (fieldV name value) fields) store)])])])))
+                (local ([define (obj-lambda value store)
+                                (type-case ObjectFields (interp-obj-fields (rest fs) env store)
+                                  [ObjException (exn-val store) (ObjException exn-val store)]
+                                  [ObjFields (fields store) (ObjFields (cons (fieldV name value) fields) store)])])
+                  ; check value to set to
+                  (type-case AnswerC (interp-env value env store)
+                    [ExceptionA (exn-val store) (ObjException exn-val store)]
+                    ; eval rest of fields
+                    [ReturnA (value store) (obj-lambda value store)]
+                    [ValueA (value store) (obj-lambda value store)]))])))
 
 ;; ListFields
 ;; used to allow the object field interpret to return an exception
@@ -85,18 +92,20 @@
      (type-case AnswerC (interp-env (first exprs) env store)
        [ExceptionA (exn-val store)
                    (LException exn-val store)]
-       [ValueA (value store)
-               (LFields (list value) store)])]
+       [ReturnA (value store) (LFields (list value) store)]
+       [ValueA (value store) (LFields (list value) store)])]
     [else
-     (type-case AnswerC (interp-env (first exprs) env store)
-       [ExceptionA (exn-val store)
-                   (LException exn-val store)]
-       [ValueA (value store)
+     (local ([define (list-lambda value store)
                (type-case ListFields (interp-list-exp (rest exprs) env store)
                  [LException (exn-val store)
                              (LException exn-val store)]
                  [LFields (fields store)
-                          (LFields (cons value fields) store)])])]))
+                          (LFields (cons value fields) store)])])
+       (type-case AnswerC (interp-env (first exprs) env store)
+         [ExceptionA (exn-val store)
+                     (LException exn-val store)]
+         [ReturnA (value store) (list-lambda value store)]
+         [ValueA (value store) (list-lambda value store)]))]))
 
 (define (interp-dict-exp (old-hash : (hashof CExp CExp))
                          (new-hash : (hashof CVal CVal))
@@ -109,11 +118,13 @@
        ; interp key
        (type-case AnswerC (interp-env key env store)
          [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+         [ReturnA (value store) (ReturnA value store)]
          [ValueA (value store)
                  (local ([define key-val value])
                    ; interp value
                    (type-case AnswerC (interp-env (some-v (hash-ref old-hash key)) env store)
                      [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                     [ReturnA (value store) (ReturnA value store)]
                      [ValueA (value store)
                              ; recurse to rest of pairs
                              (interp-dict-exp old-hash
@@ -126,46 +137,50 @@
 (define (interp-prim1 [op : symbol] [arg : CExp] [env : Env] [store : Store]) : AnswerC
   (type-case AnswerC (interp-env arg env store)
     [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    [ReturnA (value store) (ReturnA value store)]
     ; evaluate
     [ValueA (value store)
-            (ValueA (case op
-                      
-                      ['print (begin
-                                (display (pretty value))
-                                value)]
-                      
-                      ['to-string (VStr (pretty value))]
-                      
-                      ['tagof (type-case CVal value
-                                [VStr (s) (VStr "string")]
-                                [VInt (n) (VStr "number")]
-                                [VFloat (n) (VStr "number")]
-                                [VObject (fields) (VStr "object")]
-                                [VClosure (args body env) (VStr "function")]
-                                [VTrue () (VStr "boolean")]
-                                [VFalse () (VStr "boolean")]
-                                [VUndefined () (VStr "undefined")]
-                                [VList (fields) (VStr "list")]
-                                [VDict (htable) (VStr "hash")])]
-                      ['len (type-case CVal value
-                              [VStr (s) (VInt (string-length s))]
-                              [VObject (fields) (VInt (length fields))]
-                              [VList (fields) (VInt (length fields))]
-                              [VDict (htable) (VInt (length (hash-keys htable)))]
-                              [else (VUndefined)])]
-                      ; numbers
-                      ['USub (type-case CVal value
-                               [VInt (n) (VInt (- 0 n))]
-                               [else (VUndefined)])]
-                      ['Not (type-case CVal value
-                              [VTrue () (VFalse)]
-                              [VFalse () (VTrue)]
-                              [else (VUndefined)])]
-                      [else (begin
-                              (display "HANDLE PRIM1: \n")
-                              (display op)
-                              value)])
-                    store)]))
+            (ValueA
+             (case op
+               ['to-print (begin
+                            (display (pretty value))
+                            value)]
+               
+               ['to-string (VStr (pretty value))]
+               
+               ['tagof (type-case CVal value
+                         [VStr (s) (VStr "string")]
+                         [VInt (n) (VStr "number")]
+                         [VFloat (n) (VStr "number")]
+                         [VObject (fields) (VStr "object")]
+                         [VClosure (args body env) (VStr "function")]
+                         [VTrue () (VStr "boolean")]
+                         [VFalse () (VStr "boolean")]
+                         [VUndefined () (VStr "undefined")]
+                         [VNone () (VStr "none")]
+                         [VList (fields) (VStr "list")]
+                         [VDict (htable) (VStr "hash")])]
+               ['len (type-case CVal value
+                       [VStr (s) (VInt (string-length s))]
+                       [VObject (fields) (VInt (length fields))]
+                       [VList (fields) (VInt (length fields))]
+                       [VDict (htable) (VInt (length (hash-keys htable)))]
+                       [else (VUndefined)])]
+               ; numbers
+               ['USub (type-case CVal value
+                        [VInt (n) (VInt (- 0 n))]
+                        [else (VUndefined)])]
+               
+               ; logical
+               ['Not (type-case CVal value
+                       [VTrue () (VFalse)]
+                       [VFalse () (VTrue)]
+                       [else (VUndefined)])]
+               [else (begin
+                       (display "HANDLE PRIM1: \n")
+                       (display op)
+                       value)])
+             store)]))
 
 ;; interp-prim2 : symbol ExprC ExprC Env Store -> Result
 ;; interprets a two argument primitive operation
@@ -173,10 +188,12 @@
   ; check arg 1
   (type-case AnswerC (interp-env arg1 env store)
     [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    [ReturnA (value store) (ReturnA value store)]
     [ValueA (value store)
             (local ([define val1 value])
               (type-case AnswerC (interp-env arg2 env store)
                 [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                [ReturnA (value store) (ReturnA value store)]
                 [ValueA (value store)
                         (local ([define val2 value]) 
                           (interp-prim2-helper op val1 val2 env store))]))]))
@@ -241,10 +258,21 @@
                      [else (interp-error "Bad arguments for *" store)]))]
        [else (interp-error "Bad arguments for *" store)])]
     ['Add
-     (ValueA (VInt (+
-                    (VInt-n val1)
-                    (VInt-n val2)))
-             store)]
+     ; int int -> int, otherwise yield float
+     (ValueA 
+      (type-case CVal val1
+        [VFloat (n1)
+                (type-case CVal val2
+                  [VFloat (n2) (VFloat (+ n1 n2))]
+                  [VInt (n2) (VFloat (+ n1 n2))]
+                  [else (VUndefined)])]
+        [VInt (n1) 
+              (type-case CVal val2
+                [VFloat (n2) (VFloat (+ n1 n2))]
+                [VInt (n2) (VInt (+ n1 n2))]
+                [else (VUndefined)])]
+        [else (VUndefined)])
+      store)]
     ['Sub
      (ValueA (VInt (-
                     (VInt-n val1)
@@ -253,7 +281,7 @@
     
     ; LOGICAL PRIM
     ['Eq
-     (ValueA (if (equal? val1 val2)
+      (ValueA (if (equal? val1 val2)
                  (VTrue)
                  (VFalse))
              store)]
@@ -412,16 +440,24 @@
     
     [CTrue () (ValueA (VTrue) store)]
     [CFalse () (ValueA (VFalse) store)]
+    [CNone () (ValueA (VNone) store)]
+    
     ; is not actually used as a value
     [CUndefined () (ValueA (VUndefined) store)]
     
     [CPass () (ValueA (VUndefined) store)]
+    [CReturn (value)
+             (type-case AnswerC (interp-env value env store)
+               [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+               [ReturnA (value store) (ExceptionA value store)]
+               [ValueA (value store) (ReturnA value store)])]
 
     [CError (e) (interp-error (to-string (interp-env e env store)) store)]
 
     [CIf (i t e)
          (type-case AnswerC (interp-env i env store)
            [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+           [ReturnA (value store) (ReturnA value store)]
            [ValueA (value store)
                    (if (get-truth-value value)
                        (interp-env t env store)
@@ -439,6 +475,7 @@
           ; get value of binding
           (type-case AnswerC (interp-env bind env store)
             [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+            [ReturnA (value store) (ReturnA value store)]
             [ValueA (value store)
                     ; insert binding
                       (local ([define use-loc (new-loc)]
@@ -450,21 +487,24 @@
     [CSeq (e1 e2)
           (type-case AnswerC (interp-env e1 env store)
             [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+            [ReturnA (value store) (ReturnA value store)]
             [ValueA (value store) (interp-env e2 env store)])]
 
-    [CApp (fun arges) (interp-app fun arges env store)]
-
+    [CApp (fun arges)
+          ; catch ReturnA, and change to value
+          (type-case AnswerC (interp-app fun arges env store)
+            [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+            [ReturnA (value store) (ValueA value store)]
+            [ValueA (value store) (ValueA (VUndefined) store)])]
     [CFunc (args body) (ValueA (VClosure args body env) store)]
 
-    [CPrim1 (prim arg)
-            (interp-prim1 prim arg env store)]
-    
-    [CPrim2 (prim left right)
-            (interp-prim2 prim left right env store)]
+    [CPrim1 (prim arg) (interp-prim1 prim arg env store)]
+    [CPrim2 (prim left right) (interp-prim2 prim left right env store)]
     
     [CTryExcept (body excepts)
                 (type-case AnswerC (interp-env body env store)
                   [ValueA (value store) (ValueA value store)]
+                  [ReturnA (value store) (ReturnA value store)]
                   [ExceptionA (exn-val store)
                               ; catch exception
                               ;## USE THE CORRECT EXCEPT
@@ -479,6 +519,7 @@
                 (interp-error (string-append "Unbound identifier: " (symbol->string id)) store)
                 (type-case AnswerC (interp-env value env store)
                   [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                  [ReturnA (value store) (ReturnA value store)]
                   [ValueA (val store)
                           (begin
                             (hash-set! store loc val)
@@ -496,6 +537,7 @@
 (define (interp-app [func : CExp] [args : (listof CExp)] [env : Env] [store : Store]) : AnswerC
   (type-case AnswerC (interp-env func env store)
     [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    [ReturnA (value store) (ReturnA value store)]
     [ValueA (value store)
          (type-case CVal value
            [VClosure (a b e)
@@ -519,6 +561,7 @@
             ; evaluate argument value
             (type-case AnswerC (interp-env (first args) appEnv store)
               [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+              [ReturnA (value store) (ReturnA value store)]
               [ValueA (value store)
                       (begin
                         (hash-set! store newloc value)
@@ -551,8 +594,7 @@
 (define (interp expr)
   ; catch exception at top level
   (type-case AnswerC (interp-env expr empty (make-hash empty))
-    [ExceptionA (exn-val store)
-                (print-error exn-val store)]
+    [ExceptionA (exn-val store) (print-error exn-val store)]
+    [ReturnA (value store) (print-error value store)]
     [ValueA (val store) val]))
 
- 

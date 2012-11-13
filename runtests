@@ -1,19 +1,32 @@
-
-# BOOL
-echo "BOOL"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-str.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-int.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-compare.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-callable.py
-
-
 echo "TYPES"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_booleans.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_div_zero.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_floats.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/types_truthy2.py
 
 
-echo "SCOPE"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda1.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda2.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda4.py
+echo "TUPLE"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-length.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-truth.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-constructors.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-add.py
+
+
+echo "LIST"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/lists/test_list_identity.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/lists/test_list_simple.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/lists/test_list_truth.py
+
+
+echo "DICT"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-bool.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-contains.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/
+
+
+echo "BUILTIN"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/len.py
+
+##############
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/callable.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/filter.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/isinstance.py
+

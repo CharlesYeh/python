@@ -6,7 +6,7 @@
 ;; desugar : PyExpr -> CExp
 ;; desugars the given visible language expression to the core language
 (define (desugar expr)
-  (get-vars-then-desugar expr))
+  (get-vars-then-desugar empty expr))
 
 ;; desugar-helper : PyExpr -> CExp
 ;; same as desugar, but used for non-top level expressions
@@ -22,7 +22,7 @@
     
     [PyId (x) (CId x)]
     
-    [PyFunc (args body) (CFunc args (get-vars-then-desugar body))]
+    [PyFunc (args body) (CFunc args (get-vars-then-desugar args body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
                             (map desugar-helper args))]
     
@@ -48,6 +48,7 @@
     
     [PyTrue () (CTrue)]
     [PyFalse () (CFalse)]
+    [PyNone () (CNone)]
     
     [PyCompare (ops left args) (desugar-compare ops left args)]
     [PyPrim (op args)
@@ -80,6 +81,7 @@
                             ;[DotLHS (obj field) (SetFieldC (desugar obj) (StrC (symbol->string field)) (desugar value))])]
     
     [PyPass () (CPass)]
+    [PyReturn (value) (CReturn (desugar-helper value))]
     #;[PyBreak () ...]
     #;[PyContinue () ...]
     
@@ -90,16 +92,21 @@
 
 ;; get-vars-then-desugar-helper : (listof symbol) ExprP -> ExprC
 ;; defines the vars of an expression to be undefined at the start, then desugars the expression
-(define (get-vars-then-desugar-helper [vars : (listof symbol)] [body : PyExpr]) : CExp
+(define (get-vars-then-desugar-helper [declared : (listof symbol)] [vars : (listof symbol)] [body : PyExpr]) : CExp
   (if (empty? vars)
       (desugar-helper body)
       ; continue defining vars
-      (CLet (first vars) (CUndefined) (get-vars-then-desugar-helper (rest vars) body))))
+      (local ([define vname (first vars)])
+        (if (member vname declared)
+            (get-vars-then-desugar-helper declared (rest vars) body)
+            (CLet vname
+                  (CUndefined)
+                  (get-vars-then-desugar-helper (cons vname declared) (rest vars) body))))))
 
 ;; get-vars-then-desugar : ExprP -> ExprC
 ;; calls helper function which sets vars to undefined, then desugars expression
-(define (get-vars-then-desugar [exprP : PyExpr]) : CExp
-  (get-vars-then-desugar-helper (get-vars exprP) exprP))
+(define (get-vars-then-desugar [declared : (listof symbol)] [exprP : PyExpr]) : CExp
+  (get-vars-then-desugar-helper declared (get-vars exprP) exprP))
 
 ;; get-vars : PyExpr -> (listof symbol)
 ;; finds all Var declarations in an expression
@@ -151,10 +158,6 @@
     [PyPrim (op args) empty]
     [PyPrimAssign (op lhs value) (get-vars value)]
     
-    ;[PreIncP (lhs) (list lhs)]
-    ;[PostIncP (lhs) (list lhs)]
-    ;[PreDecP (lhs) (list lhs)]
-    ;[PostDecP (lhs) (list lhs)]
     [else empty]))
 
 ;; get-vars-seq : (listof ExprP) -> (listof symbol)

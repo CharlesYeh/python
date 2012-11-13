@@ -20,6 +20,7 @@ ParselTongue.
   
   [CTrue]
   [CFalse]
+  [CNone]
   [CUndefined]
   
   [CSeq (e1 : CExp) (e2 : CExp)]
@@ -39,6 +40,7 @@ ParselTongue.
   [CFunc (args : (listof symbol)) (body : CExp)]
 
   [CPass]
+  [CReturn (value : CExp)]
   
   [CPrim1 (prim : symbol) (arg : CExp)]
   [CPrim2 (prim : symbol) (left : CExp) (right : CExp)]
@@ -57,6 +59,7 @@ ParselTongue.
   
   [VTrue]
   [VFalse]
+  [VNone]
   ; to handle python scope
   [VUndefined]
   
@@ -70,6 +73,7 @@ ParselTongue.
 ; the combination value with store, also used to keep track of exceptions
 (define-type AnswerC
   [ValueA (value : CVal) (store : Store)]
+  [ReturnA (value : CVal) (store : Store)]
   [ExceptionA (exn : CVal) (store : Store)])
 
 
@@ -91,6 +95,5 @@ ParselTongue.
 (define (desugar-error str)
   (CError (CObject (list (fieldC "message" (CStr str))
                          (fieldC "type" (CStr "Python"))))))
-
 
 

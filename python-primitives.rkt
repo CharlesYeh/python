@@ -22,6 +22,7 @@ primitives here.
     
     [VTrue () "True"]
     [VFalse () "False"]
+    [VNone () "None"]
     
     [VUndefined () (error 'pretty "Unbound")]
     [VList (fields) (pretty-list fields)]

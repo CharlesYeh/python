@@ -16,7 +16,7 @@ that calls the primitive `print`.
 
 (define print-lambda
   (CFunc (list 'to-print)
-    (CPrim1 'print (CId 'to-print))))
+    (CPrim1 'to-print (CId 'to-print))))
 
 (define assert-true-lambda
   (CFunc (list 'check-true)
@@ -40,41 +40,54 @@ that calls the primitive `print`.
               (CTrue)
               (CError (CStr "Assert failed")))))
 
+(define assert-raises-lambda
+  (CFunc (list 'arg1 'arg2 'arg3)
+         (CTryExcept
+           (CSeq (CApp (CId 'arg2) (list (CId 'arg3)))
+                 (CError (CStr "Assert failed")))
+           (list (CTrue)))))
+
 (define callable-lambda
   (CFunc (list 'arg1)
-         (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function"))))
+         (CReturn (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function")))))
 
 (define len-lambda
   (CFunc (list 'arg1)
-         (CPrim1 'len (CId 'arg1))))
+         (CReturn (CPrim1 'len (CId 'arg1)))))
 
 (define bool-lambda
   (CFunc (list 'arg1)
-    (CIf (CId 'arg1)
-         (CTrue)
-         (CFalse))))
+    (CReturn
+      (CIf (CId 'arg1)
+           (CTrue)
+           (CFalse)))))
 
 (define int-lambda
   (CFunc (list 'arg1)
-    (CIf (CId 'arg1)
-         (CInt 1)
-         (CInt 0))))
+    (CReturn
+      (CIf (CId 'arg1)
+           (CInt 1)
+           (CInt 0)))))
 
 (define float-lambda
   (CFunc (list 'arg1)
-    (CIf (CId 'arg1)
-         (CFloat 1)
-         (CFloat 0))))
+    (CReturn
+      (CIf (CId 'arg1)
+           (CFloat 1)
+           (CFloat 0)))))
 
 (define str-lambda
   (CFunc (list 'arg1)
-    (CPrim1 'to-string (CId 'arg1))))
+    (CReturn (CPrim1 'to-string (CId 'arg1)))))
 
 (define true-val
   (CTrue))
 
 (define false-val
   (CFalse))
+
+(define none-val
+  (CNone))
 
 (define-type LibBinding
   [bind (left : symbol) (right : CExp)])
@@ -83,10 +96,12 @@ that calls the primitive `print`.
   (list (bind 'print print-lambda)
         (bind 'True true-val)
         (bind 'False false-val)
+        (bind 'None none-val)
         (bind '___assertTrue assert-true-lambda)
         (bind '___assertEqual assert-equal-lambda)
         (bind '___assertIs assert-is-lambda)
         (bind '___assertIsNot assert-is-not-lambda)
+        (bind '___assertRaises assert-raises-lambda)
         (bind 'len len-lambda)
         (bind 'callable callable-lambda)
         (bind 'bool bool-lambda)

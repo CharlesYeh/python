@@ -59,6 +59,7 @@
   [PyFor (id : symbol) (seq : PyExpr) (body : PyExpr)]
   [PyForElse (id : symbol) (seq : PyExpr) (body : PyExpr) (else : PyExpr)]
 
+  [PyNone]
   [PyPass]
   [PyReturn (value : PyExpr)]
   [PyBreak]
