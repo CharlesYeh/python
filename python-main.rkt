@@ -22,7 +22,6 @@
        (get-structured-python
         (parse-python/port port python-path))))));)
 
-
 (define python-path "/home/joe/bin/python")
 
 (command-line

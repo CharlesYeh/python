@@ -15,70 +15,78 @@ that calls the primitive `print`.
 (define-type-alias Lib (CExp -> CExp))
 
 (define print-lambda
-  (CFunc (list 'to-print)
+  (CFunc (list 'to-print) empty
     (CPrim1 'to-print (CId 'to-print))))
 
 (define assert-true-lambda
-  (CFunc (list 'check-true)
+  (CFunc (list 'check-true) empty
     (CIf (CId 'check-true) (CTrue) (CError (CStr "Assert failed")))))
 
 (define assert-equal-lambda
-  (CFunc (list 'arg1 'arg2)
+  (CFunc (list 'arg1 'arg2) empty
     (CIf (CPrim2 'Eq (CId 'arg1) (CId 'arg2))
          (CTrue)
          (CError (CStr "Assert failed")))))
 
 (define assert-is-lambda
-  (CFunc (list 'arg1 'arg2)
+  (CFunc (list 'arg1 'arg2) empty
          (CIf (CPrim2 'Is (CId 'arg1) (CId 'arg2))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-is-not-lambda
-  (CFunc (list 'arg1 'arg2)
+  (CFunc (list 'arg1 'arg2) empty
          (CIf (CPrim2 'IsNot (CId 'arg1) (CId 'arg2))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-raises-lambda
-  (CFunc (list 'arg1 'arg2 'arg3)
+  (CFunc (list 'arg1 'arg2 'arg3) empty
          (CTryExcept
            (CSeq (CApp (CId 'arg2) (list (CId 'arg3)))
                  (CError (CStr "Assert failed")))
            (list (CTrue)))))
 
 (define callable-lambda
-  (CFunc (list 'arg1)
+  (CFunc (list 'arg1) empty
          (CReturn (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function")))))
 
 (define len-lambda
-  (CFunc (list 'arg1)
+  (CFunc (list 'arg1) empty
          (CReturn (CPrim1 'len (CId 'arg1)))))
 
 (define bool-lambda
-  (CFunc (list 'arg1)
+  (CFunc (list 'arg1) empty
     (CReturn
       (CIf (CId 'arg1)
            (CTrue)
            (CFalse)))))
 
 (define int-lambda
-  (CFunc (list 'arg1)
+  (CFunc (list 'arg1) empty
     (CReturn
       (CIf (CId 'arg1)
            (CInt 1)
            (CInt 0)))))
 
 (define float-lambda
-  (CFunc (list 'arg1)
+  (CFunc (list 'arg1) empty
     (CReturn
       (CIf (CId 'arg1)
            (CFloat 1)
            (CFloat 0)))))
 
 (define str-lambda
-  (CFunc (list 'arg1)
+  (CFunc (list 'arg1) empty
     (CReturn (CPrim1 'to-string (CId 'arg1)))))
+
+(define tuple-lambda
+  (CFunc (list 'arg1) (list (CList #f empty))
+    (CReturn (CPrim1 'to-tuple (CId 'arg1)))))
+
+(define list-lambda
+  (CFunc (list 'arg1) (list (CList #t empty))
+    (CReturn (CPrim1 'to-list (CId 'arg1)))))
 
 (define true-val
   (CTrue))
@@ -108,6 +116,8 @@ that calls the primitive `print`.
         (bind 'int int-lambda)
         (bind 'float float-lambda)
         (bind 'str str-lambda)
+        (bind 'tuple tuple-lambda)
+        (bind 'list list-lambda)
 ))
 
 (define (python-lib expr)

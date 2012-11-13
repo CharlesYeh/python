@@ -19,6 +19,7 @@
   
   [PyId (x : symbol)]
   
+  [PyClass (body : PyExpr)]
   [PyFunc (args : (listof symbol)) (body : PyExpr)]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   
@@ -29,8 +30,7 @@
   [PyStr (s : string)]
   [PyFloat (n : number)]
   [PyComplex (n : number)]
-  [PyTuple (values : (listof PyExpr))]
-  [PyList (values : (listof PyExpr))]
+  [PyList (mutable : boolean) (values : (listof PyExpr))]
   [PyDict (htable : (hashof PyExpr PyExpr))]
   [PyObject (fields : (listof FieldP))]
 

@@ -15,7 +15,7 @@ ParselTongue.
   [CInt (n : number)]
   [CFloat (n : number)]
   [CStr (s : string)]
-  [CList (fields : (listof CExp))]
+  [CList (mutable : boolean) (fields : (listof CExp))]
   [CDict (htable : (hashof CExp CExp))]
   
   [CTrue]
@@ -37,14 +37,14 @@ ParselTongue.
   [CLet (x : symbol) (bind : CExp) (body : CExp)]
   
   [CApp (fun : CExp) (args : (listof CExp))]
-  [CFunc (args : (listof symbol)) (body : CExp)]
+  [CFunc (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
 
   [CPass]
   [CReturn (value : CExp)]
   
   [CPrim1 (prim : symbol) (arg : CExp)]
   [CPrim2 (prim : symbol) (left : CExp) (right : CExp)]
-          
+         
   [CObject (fields : (listof FieldC))]
   [CSet (id : symbol) (value : CExp)])
 
@@ -63,10 +63,10 @@ ParselTongue.
   ; to handle python scope
   [VUndefined]
   
-  [VClosure (args : (listof symbol)) (body : CExp) (env : Env)]
+  [VClosure (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   
   [VObject (fields : (listof FieldV))]
-  [VList (fields : (listof CVal))]
+  [VList (mutable : boolean) (fields : (listof CVal))]
   [VDict (htable : (hashof CVal CVal))]
 )
 

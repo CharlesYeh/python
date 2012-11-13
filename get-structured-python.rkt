@@ -74,7 +74,7 @@ structure that you define in python-syntax.rkt
      (PyAssign (IdLHS (string->symbol name))
                (PyFunc (get-structured-python args)
                        (get-structured-python body)))]
-    #;[(hash-table ('nodetype "ClassDef")
+    [(hash-table ('nodetype "ClassDef")
                  ('name name)
                  ('bases bases)
                  ('keywords keywords)
@@ -174,6 +174,16 @@ structure that you define in python-syntax.rkt
      (local ([define optype (string->symbol (hash-ref op 'nodetype))])
        (PyPrim optype (map get-structured-python values)))]
     
+    [(hash-table ('nodetype "AugAssign")
+                 ('target target)
+                 ('op op)
+                 ('value value))
+     ; assume is id for now
+     (local ([define optype (string->symbol (hash-ref op 'nodetype))])
+       (PyPrimAssign optype
+                     (IdLHS (PyId-x
+                             (get-structured-python target)))
+                     (get-structured-python value)))]
     [(hash-table ('nodetype "Assign")
                  ('targets targets)
                  ('value value))
@@ -207,19 +217,19 @@ structure that you define in python-syntax.rkt
     [(hash-table ('nodetype "Tuple")
                  ('ctx ctx)
                  ('elts elts))
-     (PyTuple
+     (PyList #f
        (map get-structured-python elts))]
     [(hash-table ('nodetype "List")
                  ('elts elts)
                  ('ctx ctx))
-     (PyList (map get-structured-python elts))]
+     (PyList #t (map get-structured-python elts))]
     [(hash-table ('nodetype "Dict")
                  ('keys keys)
                  ('values values))
      (local ([define htable (make-hash)])
        (begin
          (map (lambda (k v) (hash-set! htable (get-structured-python k)
-                                          (get-structured-python v)))
+                                              (get-structured-python v)))
               keys values)
          (PyDict htable)))]
 

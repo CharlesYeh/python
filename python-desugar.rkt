@@ -22,7 +22,8 @@
     
     [PyId (x) (CId x)]
     
-    [PyFunc (args body) (CFunc args (get-vars-then-desugar args body))]
+    ;############# default params
+    [PyFunc (args body) (CFunc args empty (get-vars-then-desugar args body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
                             (map desugar-helper args))]
     
@@ -35,8 +36,7 @@
     [PyInt (n) (CInt n)]
     [PyFloat (n) (CFloat n)]
     [PyStr (s) (CStr s)]
-    #;[PyTuple (values) ...]
-    [PyList (fields) (CList (map desugar-helper fields))]
+    [PyList (mutable fields) (CList mutable (map desugar-helper fields))]
     [PyDict (htable) (local ([define new-hash (make-hash empty)])
                        (begin
                          (map (lambda (key)
@@ -74,11 +74,17 @@
     #;[PyFor (id seq body) ...]
     #;[PyForElse (id seq body else-exp) ...]
     
-    [PyAssign (lhs value) (type-case LHS lhs
-                            [IdLHS (id) (CSet id (desugar value))]
-                            [else (error 'desugar "Handle other assignments")])]
-                            ;[BracketLHS (obj field) (SetFieldC (desugar obj) (desugar field) (desugar value))]
-                            ;[DotLHS (obj field) (SetFieldC (desugar obj) (StrC (symbol->string field)) (desugar value))])]
+    [PyAssign (lhs value)
+              (type-case LHS lhs
+                [IdLHS (id) (CSet id (desugar value))]
+                [else (error 'desugar "Handle other assignments")])]
+    ;[BracketLHS (obj field) (SetFieldC (desugar obj) (desugar field) (desugar value))]
+    ;[DotLHS (obj field) (SetFieldC (desugar obj) (StrC (symbol->string field)) (desugar value))])]
+    
+    [PyPrimAssign (op lhs value)
+                  (type-case LHS lhs
+                    [IdLHS (id) (CSet id (CPrim2 op (CId id) (desugar value)))]
+                    [else (error 'desugar "Handle other assignments")])]
     
     [PyPass () (CPass)]
     [PyReturn (value) (CReturn (desugar-helper value))]

@@ -25,10 +25,10 @@ primitives here.
     [VNone () "None"]
     
     [VUndefined () (error 'pretty "Unbound")]
-    [VList (fields) (pretty-list fields)]
+    [VList (mutable fields) (pretty-list fields)]
     [VDict (htable) (pretty-dict htable)]
     
-    [VClosure (env args body) (error 'prim "Can't print closures yet")]
+    [VClosure (env args defaults body) (error 'prim "Can't print closures yet")]
     [VObject (fields) (error 'prim "Can't print objs yet")]))
   
 (define (pretty-list arg)
