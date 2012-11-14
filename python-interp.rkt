@@ -24,24 +24,6 @@
             (binding-value node)
             (lookup name (rest env))))))
 
-;; lookup-defined : symbol Env Store -> Location
-;; finds the location of a symbol in the environment, searching until there's a defined value
-(define (lookup-defined (name : symbol) (env : Env) (store : Store)) : Location
-  (lookup name env))
-
-#;(define (lookup-defined (name : symbol) (env : Env) (store : Store)) : Location
-  (if (empty? env)
-      -1
-      (local ([define node (first env)])
-        (if (equal? name (binding-name node))
-            (type-case (optionof CVal) (hash-ref store (binding-value node))
-              [some (val)
-                    (type-case CVal val
-                      [VUndefined () (lookup-defined name (rest env) store)]
-                      [else (binding-value node)])]
-              [none () -1])
-            (lookup-defined name (rest env) store)))))
-
 ;; get-truth-value : CVal -> boolean
 ;; the truth value definitions of different types when used as a boolean
 (define (get-truth-value value)
@@ -198,23 +180,64 @@
 ;; interprets a two argument primitive operation
 (define (interp-prim2 (op : symbol) (arg1 : CExp) (arg2 : CExp) (env : Env) (store : Store)) : AnswerC
   ; check arg 1
-  (type-case AnswerC (interp-env arg1 env store)
-    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-    [ReturnA (value store) (ReturnA value store)]
-    [ValueA (value store)
-            (local ([define val1 value])
-              (type-case AnswerC (interp-env arg2 env store)
-                [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-                [ReturnA (value store) (ReturnA value store)]
-                [ValueA (value store)
-                        (local ([define val2 value])
-                          (interp-prim2-helper op val1 val2 env store))]))]))
+     (type-case AnswerC (interp-env arg1 env store)
+       [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+       [ReturnA (value store) (ReturnA value store)]
+       [ValueA (value store)
+               (local ([define val1 value])
+                 (type-case AnswerC (interp-env arg2 env store)
+                   [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                   [ReturnA (value store) (ReturnA value store)]
+                   [ValueA (value store)
+                           (local ([define val2 value])
+                             (case op
+                               ['Is (interp-prim-is arg1 arg2 val1 val2 env store)]
+                               ['IsNot (type-case AnswerC (interp-prim-is arg1 arg2 val1 val2 env store)
+                                         [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                                         [ReturnA (value store) (ReturnA value store)]
+                                         [ValueA (value store)
+                                                 (ValueA (if (VTrue? value) (VFalse) (VTrue))
+                                                         store)])]
+                               [else
+                                (interp-prim2-helper op val1 val2 env store)]))]))]))
+
+(define (interp-prim-is (arg1 : CExp) (arg2 : CExp)
+                        (val1 : CVal) (val2 : CVal)
+                        (env : Env) (store : Store)) : AnswerC
+  (ValueA
+   (if (type-case CVal val1
+         ; strings and numbers are checked by value, everything else by address
+         ; check addr of lists? #########
+         [VStr (s) (equal? val1 val2)]
+         [VInt (n) (equal? val1 val2)]
+         [VFloat (n) (equal? val1 val2)]
+         [VTrue () (equal? val1 val2)]
+         [VFalse () (equal? val1 val2)]
+         [VList (mutable fields) (and (not mutable) (and (< 0 (length fields)) (equal? val1 val2)))]
+         [else #f]
+         #;[else
+          ; check addr of CExp
+          (type-case CExp arg1
+            [CId (x1)
+                 (type-case CExp arg2
+                   [CId (x2) 
+                        (if (equal? (lookup x1 env) (lookup x2 env))
+                            #t
+                            #f)]
+                   [else #f])]
+            [else #f])])
+       (VTrue)
+       (VFalse))
+   store))
 
 ;; interp-prim2-helper : symbol ValueC ValueC Env Store -> AnswerC
 ;; interprets prim2 after exception checking is done in the main prim2c interpret function
 (define (interp-prim2-helper [op : symbol] [val1 : CVal] [val2 : CVal] [env : Env] [store : Store]) : AnswerC
   (case op
     ; BOOLEAN PRIM
+    ;['builtin-filter
+     ; check filter function
+     ;(type-case CVal]
     ['Or
      (ValueA (if
               (or (get-truth-value val1)
@@ -302,24 +325,6 @@
                  (VFalse)
                  (VTrue))
              store)]
-    ['Is
-     (ValueA
-      (type-case CVal val1
-        ; check addr of lists? #########
-        [VList (mutable fields) (VFalse)]
-        [else (if (equal? val1 val2)
-                  (VTrue)
-                  (VFalse))])
-      store)]
-    ['IsNot
-     (ValueA
-      (type-case CVal val1
-        ; check addr of lists? #########
-        [VList (mutable fields) (VTrue)]
-        [else (if (equal? val1 val2)
-                  (VFalse)
-                  (VTrue))])
-      store)]
     ['In
      (type-case CVal val2
        [VList (mutable fields)
@@ -435,6 +440,26 @@
        (display op)
        (ExceptionA (VUndefined) store))]))
 
+;; interp-getfield
+(define (interp-getfield (obj : CExp) (field : CExp) (env : Env) (store : Store)) : AnswerC
+  (type-case AnswerC (interp-env obj env store)
+    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    [ReturnA (value store) (ReturnA value store)]
+    [ValueA (obj-val store)
+            (type-case AnswerC (interp-env field env store)
+              [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+              [ReturnA (value store) (ReturnA value store)]
+              [ValueA (field-val store)
+                      ; get the field
+                      (ValueA
+                       (type-case CVal obj-val
+                         [VDict (htable)
+                                (cond
+                                  ;[(equal? (VStr "update") field-val) (dict-update-lambda)]
+                                  [else (VUndefined)])]
+                         [else (VUndefined)])
+                       store)])]))
+
 ;; interp-env : CExp Env Store -> CVal
 ;; interprets the given expression, with environment and store
 (define (interp-env (expr : CExp) (env : Env) (store : Store)) : AnswerC
@@ -457,6 +482,7 @@
                               new-hash
                               (hash-keys htable)
                               env store))]
+    [CGetField (obj field) (interp-getfield obj field env store)]
     
     [CTrue () (ValueA (VTrue) store)]
     [CFalse () (ValueA (VFalse) store)]
@@ -483,7 +509,7 @@
                        (interp-env t env store)
                        (interp-env e env store))])]
 
-    [CId (x) (local ([define loc (lookup-defined x env store)])
+    [CId (x) (local ([define loc (lookup x env)])
                (if (= -1 loc)
                    (interp-error (string-append "Unbound identifier: "
                                                 (symbol->string x)) store)
@@ -522,16 +548,20 @@
     [CPrim1 (prim arg) (interp-prim1 prim arg env store)]
     [CPrim2 (prim left right) (interp-prim2 prim left right env store)]
     
-    [CTryExcept (body excepts)
-                (type-case AnswerC (interp-env body env store)
-                  [ValueA (value store) (ValueA value store)]
-                  [ReturnA (value store) (ReturnA value store)]
-                  [ExceptionA (exn-val store)
-                              ; catch exception
-                              ;## USE THE CORRECT EXCEPT
-                              (interp-env (first excepts)
-                                          env
-                                          store)])]
+    [CTry (body orelse excepts)
+          (type-case AnswerC (interp-env body env store)
+            [ValueA (value store)
+                    (interp-env orelse env store)]
+            [ReturnA (value store) (ReturnA value store)]
+            [ExceptionA (exn-val store)
+                        ; catch exception
+                        ;## USE THE CORRECT EXCEPT
+                        (interp-env (first excepts) env store)])]
+    [CTryFinally (body final)
+                 (type-case AnswerC (interp-env body env store)
+                   [ExceptionA (exn-val store) (interp-env final env store)]
+                   [ReturnA (value store) (interp-env final env store)]
+                   [ValueA (value store) (interp-env final env store)])]
     [CExcept (type body)
              (interp-env body env store)]
     [CSet (id value)

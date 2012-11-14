@@ -17,6 +17,7 @@ ParselTongue.
   [CStr (s : string)]
   [CList (mutable : boolean) (fields : (listof CExp))]
   [CDict (htable : (hashof CExp CExp))]
+  [CGetField (obj : CExp) (field : CExp)]
   
   [CTrue]
   [CFalse]
@@ -30,7 +31,8 @@ ParselTongue.
 
   ; error control
   [CError (e1 : CExp)]
-  [CTryExcept (body : CExp) (excepts : (listof CExp))]
+  [CTry (body : CExp) (orelse : CExp) (excepts : (listof CExp))]
+  [CTryFinally (body : CExp) (final : CExp)]
   [CExcept (type : CExp) (body : CExp)]
 
   [CId (x : symbol)]

@@ -33,6 +33,7 @@
   [PyList (mutable : boolean) (values : (listof PyExpr))]
   [PyDict (htable : (hashof PyExpr PyExpr))]
   [PyObject (fields : (listof FieldP))]
+  [PyGetField (obj : PyExpr) (field : PyExpr)]
 
   [PyGlobal (vars : (listof symbol))]
   [PyNonlocal (vars : (listof symbol))]
@@ -47,8 +48,8 @@
   [PyPrim (op : symbol) (args : (listof PyExpr))]
   
   ; error control
-  [PyTryExcept (body : PyExpr) (excepts : (listof PyExpr))]
-  [PyTryElseExcept (body : PyExpr) (else : PyExpr) (excepts : (listof PyExpr))]
+  [PyTry (body : PyExpr) (else : PyExpr) (excepts : (listof PyExpr))]
+  [PyTryFinally (body : PyExpr) (final : PyExpr)]
   [PyRaise (exc : PyExpr) (cause : PyExpr)]
   [PyReRaise]
   [PyExcept (type : PyExpr) (body : PyExpr)]

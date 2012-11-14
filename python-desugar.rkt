@@ -11,6 +11,9 @@
 ;; desugar-helper : PyExpr -> CExp
 ;; same as desugar, but used for non-top level expressions
 (define (desugar-helper expr)
+  (begin
+    ;(display expr)
+    ;(display "\n\n")
   (type-case PyExpr expr
     [PySeq (es) (if (empty? es)
                     (CPass)
@@ -45,6 +48,7 @@
                                            (desugar-helper (some-v (hash-ref htable key)))))
                               (hash-keys htable))
                          (CDict new-hash)))]
+    ;[PyGetField (obj field) (CGetField (desugar-helper obj) (desugar-helper field))]
     
     [PyTrue () (CTrue)]
     [PyFalse () (CFalse)]
@@ -61,9 +65,13 @@
                        (rest args)))]
     
     ; error control
-    [PyTryExcept (body excepts) (CTryExcept (desugar-helper body)
-                                            (map desugar-helper excepts))]
-    #;[PyTryElseExcept (body else excepts) ...]
+    [PyTry (body orelse excepts)
+           (CTry (desugar-helper body)
+                 (desugar-helper orelse)
+                 (map desugar-helper excepts))]
+    [PyTryFinally (body final)
+                  (CTryFinally (desugar-helper body)
+                               (desugar-helper final))]
     [PyRaise (exc cause) (CError (desugar-helper exc))]
     #;[PyReRaise () ...]
     [PyExcept (type body) (CExcept (desugar-helper type) (desugar-helper body))]
@@ -94,6 +102,7 @@
     [else (begin
             (display expr)
             (error 'desugar "Haven't handled a case yet"))]))
+)
 
 
 ;; get-vars-then-desugar-helper : (listof symbol) ExprP -> ExprC

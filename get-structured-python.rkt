@@ -51,7 +51,7 @@ structure that you define in python-syntax.rkt
                  ('value value)
                  ('attr attr)
                  ('ctx ctx))
-     (DotLHS (get-structured-python value) (string->symbol attr))]
+     (PyGetField (get-structured-python value) (PyStr attr))]
     
     [(hash-table ('nodetype "arg")
                  ('arg arg)
@@ -125,12 +125,20 @@ structure that you define in python-syntax.rkt
                 (map get-structured-python comparators))]
     
     ; error control
+    [(hash-table ('nodetype "TryFinally")
+                 ('body body)
+                 ('finalbody finalbody))
+     (PyTryFinally (get-structured-python body)
+                   (get-structured-python finalbody))]
     [(hash-table ('nodetype "TryExcept")
                  ('body body)
-                 ('orelse orelse)  ; use this!!#############
+                 ('orelse orelse)
                  ('handlers handlers))
-     (PyTryExcept (get-structured-python body)
-                  (map get-structured-python handlers))]
+     (PyTry (get-structured-python body)
+            (if (equal? #\nul orelse)
+                (PyPass)
+                (get-structured-python orelse))
+            (map get-structured-python handlers))]
     [(hash-table ('nodetype "Raise")
                  ('exc exc)   ; what is this? ############
                  ('cause cause))
@@ -140,9 +148,11 @@ structure that you define in python-syntax.rkt
                  ('type type)
                  ('name name)    ; use this #############
                  ('body body))
-     (local ([define pytype (get-structured-python type)]
+     (local ([define pytype (if (equal? #\nul type)
+                                (PyStr "")
+                                (get-structured-python type))]
              [define pybody (get-structured-python body)])
-       (if (null? name)
+       (if (equal? #\nul name)
            (PyExcept pytype pybody)
            (PyExcept pytype pybody)))]
            ;(PyNamedExcept pytype name pybody))))]

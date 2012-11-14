@@ -22,6 +22,11 @@ that calls the primitive `print`.
   (CFunc (list 'check-true) empty
     (CIf (CId 'check-true) (CTrue) (CError (CStr "Assert failed")))))
 
+(define assert-false-lambda
+  (CFunc (list 'check-false) empty
+    (CIf (CId 'check-false) (CError (CStr "Assert failed"))
+                           (CFalse))))
+
 (define assert-equal-lambda
   (CFunc (list 'arg1 'arg2) empty
     (CIf (CPrim2 'Eq (CId 'arg1) (CId 'arg2))
@@ -40,12 +45,29 @@ that calls the primitive `print`.
               (CTrue)
               (CError (CStr "Assert failed")))))
 
+(define assert-in-lambda
+  (CFunc (list 'arg1 'arg2) empty
+         (CIf (CPrim2 'In (CId 'arg1) (CId 'arg2))
+              (CTrue)
+              (CError (CStr "Assert failed")))))
+
+(define assert-not-in-lambda
+  (CFunc (list 'arg1 'arg2) empty
+         (CIf (CPrim2 'NotIn (CId 'arg1) (CId 'arg2))
+              (CTrue)
+              (CError (CStr "Assert failed")))))
+
 (define assert-raises-lambda
   (CFunc (list 'arg1 'arg2 'arg3) empty
-         (CTryExcept
+         (CTry
            (CSeq (CApp (CId 'arg2) (list (CId 'arg3)))
                  (CError (CStr "Assert failed")))
+           (CPass)
            (list (CTrue)))))
+
+(define filter-lambda
+  (CFunc (list 'func 'iter) empty
+         (CReturn (CPrim2 'builtin-filter (CId 'func) (CPrim1 'to-list (CId 'iter))))))
 
 (define callable-lambda
   (CFunc (list 'arg1) empty
@@ -106,9 +128,12 @@ that calls the primitive `print`.
         (bind 'False false-val)
         (bind 'None none-val)
         (bind '___assertTrue assert-true-lambda)
+        (bind '___assertFalse assert-false-lambda)
         (bind '___assertEqual assert-equal-lambda)
         (bind '___assertIs assert-is-lambda)
         (bind '___assertIsNot assert-is-not-lambda)
+        (bind '___assertIn assert-in-lambda)
+        (bind '___assertNotIn assert-not-in-lambda)
         (bind '___assertRaises assert-raises-lambda)
         (bind 'len len-lambda)
         (bind 'callable callable-lambda)

@@ -18,7 +18,6 @@
   (interp
     (python-lib
       (desugar
-       ;(display
        (get-structured-python
         (parse-python/port port python-path))))));)
 
