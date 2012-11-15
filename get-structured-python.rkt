@@ -83,7 +83,7 @@ structure that you define in python-syntax.rkt
                  ('body body)
                  ('decorator_list decorator_list))
      (PyAssign (IdLHS (string->symbol name))
-               (PyClass (get-structured-python body)))]
+               (PyClass bases (get-structured-python body)))]
     
     [(hash-table ('nodetype "Return")
                  ('value value))
@@ -140,7 +140,7 @@ structure that you define in python-syntax.rkt
                 (get-structured-python orelse))
             (map get-structured-python handlers))]
     [(hash-table ('nodetype "Raise")
-                 ('exc exc)   ; what is this? ############
+                 ('exc exc)
                  ('cause cause))
      ;(PyRaise (get-structured-python exc) (get-structured-python cause))
      (PyRaise (get-structured-python exc) (PyPass))]

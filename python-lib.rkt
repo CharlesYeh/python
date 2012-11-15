@@ -135,6 +135,7 @@ that calls the primitive `print`.
         (bind '___assertIn assert-in-lambda)
         (bind '___assertNotIn assert-not-in-lambda)
         (bind '___assertRaises assert-raises-lambda)
+        (bind 'filter filter-lambda)
         (bind 'len len-lambda)
         (bind 'callable callable-lambda)
         (bind 'bool bool-lambda)

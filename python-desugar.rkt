@@ -26,6 +26,11 @@
     [PyId (x) (CId x)]
     
     ;############# default params
+    [PyClass (bases body)
+             (local ([define fields (make-hash empty)])
+               (begin
+                 (desugar-class body fields)
+                 (CClass bases fields)))]
     [PyFunc (args body) (CFunc args empty (get-vars-then-desugar args body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
                             (map desugar-helper args))]
@@ -48,7 +53,7 @@
                                            (desugar-helper (some-v (hash-ref htable key)))))
                               (hash-keys htable))
                          (CDict new-hash)))]
-    ;[PyGetField (obj field) (CGetField (desugar-helper obj) (desugar-helper field))]
+    [PyGetField (obj field) (CGetField (desugar-helper obj) (desugar-helper field))]
     
     [PyTrue () (CTrue)]
     [PyFalse () (CFalse)]
@@ -104,6 +109,24 @@
             (error 'desugar "Haven't handled a case yet"))]))
 )
 
+(define (desugar-class (body : PyExpr) (fields : (hashof CExp CExp))) : void
+  (type-case PyExpr body
+    [PySeq (es)
+           (begin
+             ; place all definitions into fields
+             (map (lambda (exp)
+                    ; separate out class definition
+                    (type-case PyExpr exp
+                      [PyAssign (lhs value)
+                                ; put definition into field of class obj
+                                (type-case LHS lhs
+                                  [IdLHS (id)
+                                         (hash-set! fields (CStr (symbol->string id)) (desugar-helper value))]
+                                  [else (void)])]
+                      [else (void)]))
+                  es)
+             (void))]
+    [else (void)]))
 
 ;; get-vars-then-desugar-helper : (listof symbol) ExprP -> ExprC
 ;; defines the vars of an expression to be undefined at the start, then desugars the expression
@@ -202,3 +225,4 @@
                   (CPrim2 fop left farg)
                   (desugar-compare-helper (rest ops) farg (rest args))))))
   )
+

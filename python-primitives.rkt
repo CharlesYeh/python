@@ -29,7 +29,8 @@ primitives here.
     [VDict (htable) (pretty-dict htable)]
     
     [VClosure (env args defaults body) (error 'prim "Can't print closures yet")]
-    [VObject (fields) (error 'prim "Can't print objs yet")]))
+    [VObject (fields) (error 'prim "Can't print objs yet")]
+    [VClass (bases fields) (error 'prim "Can't print classes yet")]))
   
 (define (pretty-list arg)
   (foldl

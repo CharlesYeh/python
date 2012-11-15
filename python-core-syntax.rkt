@@ -18,6 +18,7 @@ ParselTongue.
   [CList (mutable : boolean) (fields : (listof CExp))]
   [CDict (htable : (hashof CExp CExp))]
   [CGetField (obj : CExp) (field : CExp)]
+  [CClass (bases : (listof string)) (fields : (hashof CExp CExp))]
   
   [CTrue]
   [CFalse]
@@ -70,6 +71,7 @@ ParselTongue.
   [VObject (fields : (listof FieldV))]
   [VList (mutable : boolean) (fields : (listof CVal))]
   [VDict (htable : (hashof CVal CVal))]
+  [VClass (bases : (listof string)) (fields : (hashof CVal CVal))]
 )
 
 ; the combination value with store, also used to keep track of exceptions

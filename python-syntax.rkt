@@ -19,7 +19,7 @@
   
   [PyId (x : symbol)]
   
-  [PyClass (body : PyExpr)]
+  [PyClass (supers : (listof string)) (body : PyExpr)]
   [PyFunc (args : (listof symbol)) (body : PyExpr)]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   
