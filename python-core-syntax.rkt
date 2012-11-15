@@ -67,11 +67,14 @@ ParselTongue.
   [VUndefined]
   
   [VClosure (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
+  ; closure from an instance
+  [VMethod (inst : CExp) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   
   [VObject (fields : (listof FieldV))]
   [VList (mutable : boolean) (fields : (listof CVal))]
   [VDict (htable : (hashof CVal CVal))]
   [VClass (bases : (listof string)) (fields : (hashof CVal CVal))]
+  [VInstance (bases : (listof string)) (fields : (hashof CVal CVal))]
 )
 
 ; the combination value with store, also used to keep track of exceptions

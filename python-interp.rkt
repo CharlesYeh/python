@@ -34,6 +34,9 @@
     [VStr (s) (not (equal? s ""))]
     [VList (mutable fields) (< 0 (length fields))]
     [VDict (htable) (< 0 (length (hash-keys htable)))]
+    [VClass (bases fields) #t]
+    [VInstance (bases fields) #t]
+    [VClosure (arg defaults body env) #t]
     [else #f]))
 
 ;; ObjectFields
@@ -266,6 +269,25 @@
     [ValueA (value store)
             (ValueA
              (case op
+               ['builtin-all (type-case CVal value
+                               [VList (mutable fields)
+                                 (if (foldl (lambda (val bool)
+                                              (and (get-truth-value val) bool))
+                                            #f
+                                            fields)
+                                     (VTrue)
+                                     (VFalse))]
+                               [else (error 'interp "NOT ITERABLE")])]
+               ['builtin-any (type-case CVal value
+                               [VList (mutable fields)
+                                 (if (foldl (lambda (val bool)
+                                              (or (get-truth-value val) bool))
+                                            #f
+                                            fields)
+                                     (VTrue)
+                                     (VFalse))]
+                               [else (error 'interp "NOT ITERABLE")])]
+
                ['to-print (begin
                             (display (pretty value))
                             value)]
@@ -288,13 +310,15 @@
                          [VFloat (n) (VStr "number")]
                          [VObject (fields) (VStr "object")]
                          [VClosure (args body defaults env) (VStr "function")]
+                         [VMethod (inst args body defaults env) (VStr "function")]
                          [VTrue () (VStr "boolean")]
                          [VFalse () (VStr "boolean")]
                          [VUndefined () (VStr "undefined")]
                          [VNone () (VStr "none")]
                          [VList (mutable fields) (VStr "list")]
                          [VDict (htable) (VStr "hash")]
-                         [VClass (bases fields) (VStr "class")])]
+                         [VClass (bases fields) (VStr "class")]
+                         [VInstance (bases fields) (VStr "instance")])]
                ['len (type-case CVal value
                        [VStr (s) (VInt (string-length s))]
                        [VObject (fields) (VInt (length fields))]
@@ -375,9 +399,14 @@
 (define (interp-prim2-helper [op : symbol] [val1 : CVal] [val2 : CVal] [env : Env] [store : Store]) : AnswerC
   (case op
     ; BOOLEAN PRIM
-    ;['builtin-filter
+    ['builtin-filter
+     (type-case CVal val1
+       [VClosure (args defaults body env) (ValueA val2 store)]
+       ; no filter function: return input
+       [VNone () (ValueA val2 store)]
+       [else (interp-error "Filter type error" store)])]
     ; check filter function
-    ;(type-case CVal]
+
     ['Or
      (ValueA (if
               (or (get-truth-value val1)
@@ -583,7 +612,10 @@
 ;; interp-getfield : CExp CExp Env Store -> AnswerC
 ;; gets field values from objects
 (define (interp-getfield (obj : CExp) (field : CExp) (env : Env) (store : Store)) : AnswerC
-  (type-case AnswerC (interp-env obj env store)
+  (begin
+    ;(display obj)
+    ;(display field)
+    (type-case AnswerC (interp-env obj env store)
     [ExceptionA (exn-val store) (ExceptionA exn-val store)]
     [ReturnA (value store) (ReturnA value store)]
     [ValueA (obj-val store)
@@ -602,8 +634,15 @@
                                  (type-case (optionof CVal) (hash-ref fields field-val)
                                    [none () (VUndefined)]
                                    [some (exp) exp])]
+                         [VInstance (bases fields)
+                                    (type-case (optionof CVal) (hash-ref fields field-val)
+                                      [none () (VUndefined)]
+                                      [some (exp) exp])]
                          [else (VUndefined)])
-                       store)])]))
+                       store)])])
+    
+    )
+  )
 
 ;; interp-app : ExprC (listof ExprC) Env Store -> AnswerC
 ;; interprets function applications, checking for exceptions
@@ -616,6 +655,9 @@
               [VClosure (a d b e)
                         (interp-app-helper value a args d
                                            e env store)]
+              ; #### CHANGE THIS
+              [VClass (bases fields)
+                      (ReturnA (VInstance bases fields) store)]
               [else (interp-error (string-append "Applied a non-function: " (pretty value)) store)])]))
 
 ;; interp-app-helper : ValueC (listof symbol) (listof ExprC) Env Store -> AnswerC

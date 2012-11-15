@@ -18,6 +18,14 @@ that calls the primitive `print`.
   (CFunc (list 'to-print) empty
     (CPrim1 'to-print (CId 'to-print))))
 
+(define all-lambda
+  (CFunc (list 'l) empty
+    (CPrim1 'builtin-all (CId 'l))))
+
+(define any-lambda
+  (CFunc (list 'l) empty
+    (CPrim1 'builtin-any (CId 'l))))
+
 (define assert-true-lambda
   (CFunc (list 'check-true) empty
     (CIf (CId 'check-true) (CTrue) (CError (CStr "Assert failed")))))
@@ -71,7 +79,10 @@ that calls the primitive `print`.
 
 (define callable-lambda
   (CFunc (list 'arg1) empty
-         (CReturn (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function")))))
+         (CReturn (CPrim2 'Or
+                          (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function"))
+                          ; constructors are callable
+                          (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "class"))))))
 
 (define len-lambda
   (CFunc (list 'arg1) empty
@@ -135,6 +146,8 @@ that calls the primitive `print`.
         (bind '___assertIn assert-in-lambda)
         (bind '___assertNotIn assert-not-in-lambda)
         (bind '___assertRaises assert-raises-lambda)
+        (bind 'all all-lambda)
+        (bind 'any any-lambda)
         (bind 'filter filter-lambda)
         (bind 'len len-lambda)
         (bind 'callable callable-lambda)

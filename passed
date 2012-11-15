@@ -61,6 +61,8 @@ echo "test_floats"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_floats.py
 echo "types_truthy1"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/types_truthy1.py
+echo "types_truthy2"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/types_truthy2.py
 echo "test_simple_strings"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_simple_strings.py
 
@@ -83,5 +85,7 @@ racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/
 echo "BUILTIN"
 echo "len"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/len.py
+echo "callable"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/callable.py
 
 
