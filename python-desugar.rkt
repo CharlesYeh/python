@@ -31,7 +31,7 @@
                (begin
                  (desugar-class body fields)
                  (CClass bases fields)))]
-    [PyFunc (args body) (CFunc args empty (get-vars-then-desugar args body))]
+    [PyFunc (args body) (CFunc #f args empty (get-vars-then-desugar args body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
                             (map desugar-helper args))]
     
@@ -84,7 +84,6 @@
     
     ; loops
     #;[PyWhile (test body) ...]
-    #;[PyFor (id seq body) ...]
     #;[PyForElse (id seq body else-exp) ...]
     
     [PyAssign (lhs value)
@@ -166,9 +165,9 @@
     
     [PyWhile (test body) (get-vars body)]
     
-    [PyFor (id seq body) (cons id
-                               (append (get-vars seq)
-                                       (get-vars body)))]
+    [PyForElse (id seq body orelse) (cons id
+                                    (append (get-vars seq)
+                                            (get-vars body)))]
     
     [PyAssign (lhs value)
              (type-case LHS lhs

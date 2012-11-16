@@ -57,6 +57,19 @@ structure that you define in python-syntax.rkt
                  ('arg arg)
                  ('annotation annotation))
      (string->symbol arg)]
+
+    [(hash-table ('nodetype "GeneratorExp")
+                 ('elt elt)
+                 ('generators generators))
+     (PyGenerator (map get-structured-python elt)
+                  ; comprehensions
+                  (map get-structured-python generators))]
+    [(hash-table ('nodetype "comprehension")
+                 ('target target)
+                 ('iter iter)
+                 ('ifs ifs))
+     (local ([define t-sym (PyId-x (get-structured-python target))])
+       (PyIterator t-sym (get-structured-python iter)))]
     
     ; lambdas automatically "return"
     [(hash-table ('nodetype "Lambda")
@@ -83,7 +96,11 @@ structure that you define in python-syntax.rkt
                  ('body body)
                  ('decorator_list decorator_list))
      (PyAssign (IdLHS (string->symbol name))
-               (PyClass bases (get-structured-python body)))]
+               (begin
+(PyClass (cons name (map (lambda (x) (symbol->string (PyId-x (get-structured-python x))))
+                                        bases))
+                        (get-structured-python body)))
+)]
     
     [(hash-table ('nodetype "Return")
                  ('value value))

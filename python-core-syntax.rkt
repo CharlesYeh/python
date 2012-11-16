@@ -40,7 +40,8 @@ ParselTongue.
   [CLet (x : symbol) (bind : CExp) (body : CExp)]
   
   [CApp (fun : CExp) (args : (listof CExp))]
-  [CFunc (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
+  [CFunc (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
+  [CMeth (inst : CExp) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
 
   [CPass]
   [CReturn (value : CExp)]
@@ -66,7 +67,7 @@ ParselTongue.
   ; to handle python scope
   [VUndefined]
   
-  [VClosure (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
+  [VClosure (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   ; closure from an instance
   [VMethod (inst : CExp) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   

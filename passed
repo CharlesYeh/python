@@ -18,6 +18,10 @@ echo "bool"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-bool.py
 echo "contains"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-contains.py
+echo "get"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-get.py
+echo "update"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-clear.py
 
 
 echo "LIST"
@@ -87,5 +91,9 @@ echo "len"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/len.py
 echo "callable"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/callable.py
+echo "isinstance"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/isinstance.py
+echo "filter"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/filter.py
 
 

@@ -57,8 +57,9 @@
   
   ; loops
   [PyWhile (test : PyExpr) (body : PyExpr)]
-  [PyFor (id : symbol) (seq : PyExpr) (body : PyExpr)]
   [PyForElse (id : symbol) (seq : PyExpr) (body : PyExpr) (else : PyExpr)]
+  [PyIterator (id : symbol) (iter : PyExpr)]
+  [PyGenerator (value-gen : (listof PyExpr)) (iters : (listof PyExpr))]
 
   [PyNone]
   [PyPass]

@@ -28,21 +28,27 @@ primitives here.
     [VList (mutable fields) (pretty-list fields)]
     [VDict (htable) (pretty-dict htable)]
     
-    [VClosure (args defaults body env) (error 'prim "Can't print closures yet")]
-    [VMethod (inst args defaults body env) (error 'prim "Can't print closures yet")]
+    ;[VClosure (varargs args defaults body env) (error 'prim "Can't print closures yet")]
+    [VClosure (varargs args defaults body env) (error 'prim (to-string body))]
+    ;[VMethod (inst args defaults body env) (error 'prim "Can't print methods yet")]
+    [VMethod (inst args defaults body env) (error 'prim (to-string body))]
     [VObject (fields) (error 'prim "Can't print objs yet")]
     [VClass (bases fields) "class"]
     [VInstance (bases fields) "instance"]))
   
 (define (pretty-list arg)
-  (foldl
-    (lambda (item str)
-      (string-append
-        str
-        (string-append ", "
-                       (pretty item))))
-    (pretty (first arg))
-    (rest arg)))
+  (string-append
+    (string-append
+      "["
+      (foldl
+        (lambda (item str)
+          (string-append
+            str
+            (string-append ", "
+                           (pretty item))))
+        (pretty (first arg))
+        (rest arg)))
+    "]"))
 
 (define (pretty-dict-pair dict key)
   (string-append
