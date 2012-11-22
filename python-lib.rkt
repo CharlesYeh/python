@@ -145,7 +145,9 @@ that calls the primitive `print`.
   (CNone))
 
 (define TypeError-def
-  (CClass (list "Error") (make-hash empty)))
+  (CClass (list "TypeError" "Error") (make-hash empty)))
+
+;####### make exceptions
 
 (define-type LibBinding
   [bind (left : symbol) (right : CExp)])
