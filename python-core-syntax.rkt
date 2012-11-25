@@ -16,6 +16,7 @@ ParselTongue.
   [CFloat (n : number)]
   [CStr (s : string)]
   [CList (mutable : boolean) (fields : (listof CExp))]
+  ; MERGE SET INTO THIS ##
   [CDict (htable : (hashof CExp CExp))]
   [CGetField (obj : CExp) (field : CExp)]
   [CClass (bases : (listof string)) (fields : (hashof CExp CExp))]
@@ -31,6 +32,7 @@ ParselTongue.
   [CIf (test : CExp) (then : CExp) (else : CExp)]
 
   ; error control
+  [CReraise]
   [CError (e1 : CExp)]
   [CTry (body : CExp) (orelse : CExp) (excepts : (listof CExp))]
   [CTryFinally (body : CExp) (final : CExp)]
@@ -48,7 +50,7 @@ ParselTongue.
   
   [CPrim1 (prim : symbol) (arg : CExp)]
   [CPrim2 (prim : symbol) (left : CExp) (right : CExp)]
-         
+  
   [CObject (fields : (listof FieldC))]
   [CSet (id : symbol) (value : CExp)])
 

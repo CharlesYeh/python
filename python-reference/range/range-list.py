@@ -1,5 +1,7 @@
 ___assertEqual(list(range(3)), [0, 1, 2])
+print(list(range(1, 5)) == [1, 2, 3, 4])
 ___assertEqual(list(range(1, 5)), [1, 2, 3, 4])
+
 ___assertEqual(list(range(0)), [])
 ___assertEqual(list(range(-3)), [])
 ___assertEqual(list(range(1, 10, 3)), [1, 4, 7])

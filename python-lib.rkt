@@ -145,7 +145,13 @@ that calls the primitive `print`.
   (CNone))
 
 (define TypeError-def
-  (CClass (list "TypeError" "Error") (make-hash empty)))
+  (CClass (list "TypeError" "BaseException") (make-hash empty)))
+
+;(define RuntimeError-def
+;  (CClass (list "RuntimeError" "BaseException")
+;          (hash-set (hash empty)
+;                    "__init__"
+;                    (CMeth )))
 
 ;####### make exceptions
 
@@ -158,6 +164,7 @@ that calls the primitive `print`.
         (bind 'False false-val)
         (bind 'None none-val)
         (bind 'TypeError TypeError-def)
+;        (bind 'RuntimeError RuntimeError-def)
         (bind '___assertTrue assert-true-lambda)
         (bind '___assertFalse assert-false-lambda)
         (bind '___assertEqual assert-equal-lambda)

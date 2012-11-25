@@ -78,9 +78,8 @@
                   (CTryFinally (desugar-helper body)
                                (desugar-helper final))]
     [PyRaise (exc cause) (CError (desugar-helper exc))]
-    #;[PyReRaise () ...]
+    [PyReraise () (CReraise)]
     [PyExcept (type body) (CExcept (desugar-helper type) (desugar-helper body))]
-    #;[PyNamedExcept (type id body) ...]
     
     ; loops
     #;[PyWhile (test body) ...]

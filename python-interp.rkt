@@ -101,6 +101,7 @@
                  [ValueA (value store) (ReturnA value store)])]
       
       [CError (e) (interp-error (to-string (interp-env e env store)) store)]
+      [CReraise () (ExceptionA (VUndefined) store)]
       
       [CIf (i t e)
            (type-case AnswerC (interp-env i env store)
@@ -159,7 +160,13 @@
               [ExceptionA (exn-val store)
                           ; catch exception
                           ;## USE THE CORRECT EXCEPT
-                          (interp-env (first excepts) env store)])]
+                          (type-case AnswerC (interp-env (first excepts) env store)
+                            [ExceptionA (val store) (ExceptionA (if (equal? val (VUndefined))
+                                                                    exn-val
+                                                                    val)
+                                                                store)]
+                            [ReturnA (value store) (ReturnA value store)]
+                            [ValueA (value store) (ValueA value store)])])]
       [CTryFinally (body final)
                    (type-case AnswerC (interp-env body env store)
                      [ExceptionA (exn-val store) (interp-env final env store)]
@@ -349,8 +356,15 @@
                        [VDict (htable) (VInt (length (hash-keys htable)))]
                        [else (VUndefined)])]
                ; numbers
+               ['UAdd (type-case CVal value
+                        [VInt (n) (VInt n)]
+                        [VTrue () (VInt 1)]
+                        [VFalse () (VInt 0)]
+                        [else (VUndefined)])]
                ['USub (type-case CVal value
                         [VInt (n) (VInt (- 0 n))]
+                        [VTrue () (VInt -1)]
+                        [VFalse () (VInt 0)]
                         [else (VUndefined)])]
                
                ; logical
@@ -524,6 +538,7 @@
                    (VTrue)
                    (VFalse))
                store)]
+       ; ################ VSTR
        [else (interp-error
               (string-append (pretty val2)
                              " not iterable")
@@ -818,8 +833,10 @@
       (type-case FieldV (first fields)
         [fieldV (name value)
                 (if (equal? name "message")
-                    ;(error 'interp (pretty value))
-                    val
+                    (begin
+                      (display val)
+                      (display "\n\n")
+                      (error 'interp (pretty value)))
                     (print-object-exn val (rest fields)))])))
 
 ;; print-error : CVal Store

@@ -1,3 +1,30 @@
+#!/bin/bash
+: << 'END'
+echo "BOOLEANS"
+for file in python-reference/bool/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
+
+echo "EXCEPTIONS"
+for file in python-reference/exceptions/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
+END
+
+echo "BOOL"
+echo "callable"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-callable.py
+echo "str"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-str.py
+echo "int"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-int.py
+echo "compare"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-compare.py
+
 echo "EXCEPTIONS"
 echo "try-except"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/test-try-except.py
@@ -11,6 +38,7 @@ echo "nested-else"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/nested-else.py
 echo "nested"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/nested.py
+
 
 
 echo "DICT"
@@ -42,18 +70,6 @@ echo "truth"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-truth.py
 echo "length"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-length.py
-
-
-echo "BOOL"
-echo "callable"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-callable.py
-echo "str"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-str.py
-echo "int"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-int.py
-echo "compare"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-compare.py
-
 
 
 echo "TYPES"

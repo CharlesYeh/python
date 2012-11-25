@@ -5,11 +5,9 @@
   [BracketLHS (obj : PyExpr) (field : string)]
   [DotLHS (obj : PyExpr) (field : symbol)])
 
-(define-type TryExcept
-  [Except (body : PyExpr)]
-  [ExceptError (error : PyExpr) (body : PyExpr)]
-  [ExceptIdError (error : PyExpr) (id : symbol) (body : PyExpr)]
-  [ExceptElse (body : PyExpr)])
+;(define-type SliceParams
+;  [sliceParams (hasStart : boolean) (hasEnd : boolean) (hasStep : boolean)
+;               (start : number) (end : number) (step : number)])
 
 (define-type FieldP
   [fieldP (name : string) (value : PyExpr)])
@@ -27,16 +25,16 @@
   
   ; data types
   [PyInt (n : number)]
-  [PyStr (s : string)]
   [PyFloat (n : number)]
   [PyComplex (n : number)]
+  [PyStr (s : string)]
   [PyList (mutable : boolean) (values : (listof PyExpr))]
   [PyDict (htable : (hashof PyExpr PyExpr))]
   [PyObject (fields : (listof FieldP))]
   [PyGetField (obj : PyExpr) (field : PyExpr)]
 
-  [PyGlobal (vars : (listof symbol))]
-  [PyNonlocal (vars : (listof symbol))]
+  ;[PyGlobal (vars : (listof symbol))]
+  ;[PyNonlocal (vars : (listof symbol))]
   
   [PyTrue]
   [PyFalse]
@@ -46,14 +44,14 @@
   
   [PyCompare (ops : (listof symbol)) (left : PyExpr) (args : (listof PyExpr))]
   [PyPrim (op : symbol) (args : (listof PyExpr))]
+  ;[PySlice (value : PyExpr) (params : SliceParams)]
   
   ; error control
   [PyTry (body : PyExpr) (else : PyExpr) (excepts : (listof PyExpr))]
   [PyTryFinally (body : PyExpr) (final : PyExpr)]
   [PyRaise (exc : PyExpr) (cause : PyExpr)]
-  [PyReRaise]
+  [PyReraise]
   [PyExcept (type : PyExpr) (body : PyExpr)]
-  [PyNamedExcept (type : PyExpr) (id : symbol) (body : PyExpr)]
   
   ; loops
   [PyWhile (test : PyExpr) (body : PyExpr)]

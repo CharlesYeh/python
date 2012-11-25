@@ -160,7 +160,9 @@ structure that you define in python-syntax.rkt
                  ('exc exc)
                  ('cause cause))
      ;(PyRaise (get-structured-python exc) (get-structured-python cause))
-     (PyRaise (get-structured-python exc) (PyPass))]
+     (if (equal? #\nul exc)
+         (PyReraise)
+         (PyRaise (get-structured-python exc) (PyPass)))]
     [(hash-table ('nodetype "ExceptHandler")
                  ('type type)
                  ('name name)    ; use this #############
@@ -183,6 +185,17 @@ structure that you define in python-syntax.rkt
      (PyId (string->symbol id))]
     
     ; operators
+#|    [(hash-table ('nodetype "Subscript")
+                 ('value value)
+                 ('slice slice)
+                 ('ctx ctx))
+     (get-structured-python slice)]
+     (PySlice (get-structured-python value) )]
+    [(hash-table ('nodetype "Slice")
+                 ('upper upper)
+                 ('lower lower)
+                 ('step step))
+     (sliceParams )]|#
     [(hash-table ('nodetype "UnaryOp")
                  ('op op)
                  ('operand operand))
@@ -220,10 +233,10 @@ structure that you define in python-syntax.rkt
                           (first targets))))
                  (get-structured-python value))]
     
-    [(hash-table ('nodetype "Nonlocal")
+    #;[(hash-table ('nodetype "Nonlocal")
                  ('names names))
      (PyNonlocal (map string->symbol names))]
-    [(hash-table ('nodetype "Global")
+    #;[(hash-table ('nodetype "Global")
                  ('names names))
      (PyGlobal (map string->symbol names))]
 
