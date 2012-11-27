@@ -28,10 +28,8 @@ primitives here.
     [VList (mutable fields) (pretty-list fields)]
     [VDict (htable) (pretty-dict htable)]
     
-    ;[VClosure (varargs args defaults body env) (error 'prim "Can't print closures yet")]
     [VClosure (varargs args defaults body env) (error 'prim (to-string body))]
-    ;[VMethod (inst args defaults body env) (error 'prim "Can't print methods yet")]
-    [VMethod (inst args defaults body env) (error 'prim (to-string body))]
+    [VMethod (inst varargs args defaults body env) (error 'prim (to-string body))]
     [VObject (fields) (error 'prim "Can't print objs yet")]
     [VClass (bases fields) "class"]
     [VInstance (bases fields) "instance"]))

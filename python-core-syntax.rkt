@@ -19,6 +19,7 @@ ParselTongue.
   ; MERGE SET INTO THIS ##
   [CDict (htable : (hashof CExp CExp))]
   [CGetField (obj : CExp) (field : CExp)]
+  [CSetField (obj : CExp) (field : CExp) (value : CExp)]
   [CClass (bases : (listof string)) (fields : (hashof CExp CExp))]
   
   [CTrue]
@@ -32,18 +33,18 @@ ParselTongue.
   [CIf (test : CExp) (then : CExp) (else : CExp)]
 
   ; error control
-  [CReraise]
   [CError (e1 : CExp)]
   [CTry (body : CExp) (orelse : CExp) (excepts : (listof CExp))]
   [CTryFinally (body : CExp) (final : CExp)]
   [CExcept (type : CExp) (body : CExp)]
+  [CNamedExcept (name : symbol) (type : CExp) (body : CExp)]
 
   [CId (x : symbol)]
   [CLet (x : symbol) (bind : CExp) (body : CExp)]
   
-  [CApp (fun : CExp) (args : (listof CExp))]
+  ; args is to be a CList so an empty list of parameters can be passed around
+  [CApp (fun : CExp) (args : CExp)]
   [CFunc (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
-  [CMeth (inst : CExp) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
 
   [CPass]
   [CReturn (value : CExp)]
@@ -71,7 +72,7 @@ ParselTongue.
   
   [VClosure (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   ; closure from an instance
-  [VMethod (inst : CExp) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
+  [VMethod (inst : CVal) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   
   [VObject (fields : (listof FieldV))]
   [VList (mutable : boolean) (fields : (listof CVal))]

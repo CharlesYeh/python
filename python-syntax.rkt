@@ -3,7 +3,7 @@
 (define-type LHS
   [IdLHS (id : symbol)]
   [BracketLHS (obj : PyExpr) (field : string)]
-  [DotLHS (obj : PyExpr) (field : symbol)])
+  [DotLHS (obj : PyExpr) (field : PyExpr)])
 
 ;(define-type SliceParams
 ;  [sliceParams (hasStart : boolean) (hasEnd : boolean) (hasStep : boolean)
@@ -48,10 +48,12 @@
   
   ; error control
   [PyTry (body : PyExpr) (else : PyExpr) (excepts : (listof PyExpr))]
+  [PyExcept (type : PyExpr) (body : PyExpr)]
+  [PyNamedExcept (name : symbol) (type : PyExpr) (body : PyExpr)]
   [PyTryFinally (body : PyExpr) (final : PyExpr)]
+
   [PyRaise (exc : PyExpr) (cause : PyExpr)]
   [PyReraise]
-  [PyExcept (type : PyExpr) (body : PyExpr)]
   
   ; loops
   [PyWhile (test : PyExpr) (body : PyExpr)]

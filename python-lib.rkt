@@ -66,12 +66,11 @@ that calls the primitive `print`.
               (CError (CStr "Assert failed")))))
 
 (define assert-raises-lambda
-  (CFunc #t (list 'arg1 'arg2 'arg3) (list (CUndefined) (CUndefined) (CNone))
+  (CFunc #t (list 'arg1 'arg2 'arg3) (list (CUndefined) (CNone))
          (CTry
-           (CApp (CId 'arg2) (list (CId 'arg3)))
+           (CApp (CId 'arg2) (CId 'arg3))
            (CError (CStr "Assert failed"))
-           ;########### use arg1
-           (list (CTrue)))))
+           (list (CExcept (CId 'arg1) (CTrue))))))
 
 (define filter-lambda
   (CFunc #f (list 'func 'iter) empty
@@ -144,16 +143,30 @@ that calls the primitive `print`.
 (define none-val
   (CNone))
 
+(define IndexError-def
+  (CClass (list "IndexError" "BaseException") (make-hash empty)))
+
+(define KeyError-def
+  (CClass (list "KeyError" "BaseException") (make-hash empty)))
+
 (define TypeError-def
   (CClass (list "TypeError" "BaseException") (make-hash empty)))
 
-;(define RuntimeError-def
-;  (CClass (list "RuntimeError" "BaseException")
-;          (hash-set (hash empty)
-;                    "__init__"
-;                    (CMeth )))
-
-;####### make exceptions
+(define RuntimeError-def
+  (CClass (list "RuntimeError" "BaseException")
+          (local ([define fields (make-hash empty)])
+            (begin
+              (hash-set! fields (CStr "message") (CStr ""))
+              (hash-set! fields (CStr "__init__") (CFunc #f
+                                                         (list 'self 'message)
+                                                         (list (CStr "No active exception"))
+                                                         (CSetField (CId 'self) (CStr "message") (CId 'message))))
+              (hash-set! fields (CStr "__str__") (CFunc #f
+                                                        (list 'self)
+                                                        empty
+                                                        (CReturn (CGetField (CId 'self) (CStr "message")))))
+              fields
+              ))))
 
 (define-type LibBinding
   [bind (left : symbol) (right : CExp)])
@@ -163,8 +176,12 @@ that calls the primitive `print`.
         (bind 'True true-val)
         (bind 'False false-val)
         (bind 'None none-val)
+
+        (bind 'IndexError KeyError-def)
+        (bind 'KeyError KeyError-def)
         (bind 'TypeError TypeError-def)
-;        (bind 'RuntimeError RuntimeError-def)
+        (bind 'RuntimeError RuntimeError-def)
+
         (bind '___assertTrue assert-true-lambda)
         (bind '___assertFalse assert-false-lambda)
         (bind '___assertEqual assert-equal-lambda)

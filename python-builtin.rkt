@@ -10,8 +10,8 @@ We hope to change these to class definitions
 (require "python-core-syntax.rkt")
 
 ;; method for dict.get(key)
-(define (dict-get-lambda (self : CExp) (env : Env)) : CVal
-  (VMethod self (list 'self 'key 'default) (list (CUndefined) (CUndefined) (CNone))
+(define (dict-get-lambda (self : CVal) (env : Env)) : CVal
+  (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CUndefined) (CNone))
     (CLet 'temp-val (CPrim2 'builtin-dict-get (CId 'self) (CId 'key))
       ; return default if None
       (CIf (CPrim2 'Eq (CId 'temp-val) (CNone))
@@ -20,8 +20,8 @@ We hope to change these to class definitions
     env))
 
 ;; method for dict.clear()
-(define (dict-clear-lambda (self : CExp) (env : Env)) : CVal
-  (VMethod self (list 'self 'key 'default) (list (CUndefined) (CUndefined) (CNone))
+(define (dict-clear-lambda (self : CVal) (env : Env)) : CVal
+  (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CUndefined) (CNone))
     (CPrim1 'builtin-dict-clear (CId 'self))
     env))
 
@@ -88,3 +88,34 @@ We hope to change these to class definitions
   (type-case (optionof number) (hash-ref alphabet s)
     [none () -1]
     [some (v) v]))
+
+(define (string-to-chars [s : string]) : (listof string)
+  (map (lambda (c)
+         (list->string (list c)))
+       (string->list s)))
+
+(define (string-in [needle : string] [haystack : string]) : boolean
+  (string-in-helper (string-to-chars needle)
+                    (string-to-chars haystack)))
+
+(define (chars-substr [s : (listof string)] [len : number]) : (listof string)
+  (let ([n (box 0)])
+    (foldl (lambda (c s)
+             (begin
+               (set-box! n (add1 (unbox n)))
+               (if (<= (unbox n) len)
+                   (append s (list c))
+                   s)))
+           empty
+           s)))
+
+(define (string-in-helper [needle : (listof string)] [haystack : (listof string)]) : boolean
+  (if (< (length haystack) (length needle))
+    ; haystack is too small
+    #f
+    (if (equal? (chars-substr haystack (length needle))
+                needle)
+        #t
+        ; search in later parts of haystack
+        (string-in-helper needle (rest haystack)))))
+

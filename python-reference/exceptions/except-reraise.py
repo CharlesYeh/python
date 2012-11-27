@@ -7,4 +7,5 @@ def reraise():
         except KeyError:
             pass
         raise
+
 ___assertRaises(TypeError, reraise)

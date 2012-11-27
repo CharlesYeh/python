@@ -25,7 +25,6 @@
     
     [PyId (x) (CId x)]
     
-    ;############# default params
     [PyClass (bases body)
              (local ([define fields (make-hash empty)])
                (begin
@@ -33,7 +32,7 @@
                  (CClass bases fields)))]
     [PyFunc (args body) (CFunc #f args empty (get-vars-then-desugar args body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
-                            (map desugar-helper args))]
+                            (CList #f (map desugar-helper args)))]
     
     ; control
     [PyIf (cond then els) (CIf (desugar-helper cond)
@@ -78,8 +77,9 @@
                   (CTryFinally (desugar-helper body)
                                (desugar-helper final))]
     [PyRaise (exc cause) (CError (desugar-helper exc))]
-    [PyReraise () (CReraise)]
+    [PyReraise () (CError (CApp (CId 'RuntimeError) (CList #f empty)))]
     [PyExcept (type body) (CExcept (desugar-helper type) (desugar-helper body))]
+    [PyNamedExcept (name type body) (CNamedExcept name (desugar-helper type) (desugar-helper body))]
     
     ; loops
     #;[PyWhile (test body) ...]
@@ -88,6 +88,7 @@
     [PyAssign (lhs value)
               (type-case LHS lhs
                 [IdLHS (id) (CSet id (desugar value))]
+                [DotLHS (obj field) (CSetField (desugar obj) (desugar field) (desugar value))]
                 [else (error 'desugar "Handle other assignments")])]
     ;[BracketLHS (obj field) (SetFieldC (desugar obj) (desugar field) (desugar value))]
     ;[DotLHS (obj field) (SetFieldC (desugar obj) (StrC (symbol->string field)) (desugar value))])]
@@ -95,6 +96,10 @@
     [PyPrimAssign (op lhs value)
                   (type-case LHS lhs
                     [IdLHS (id) (CSet id (CPrim2 op (CId id) (desugar value)))]
+                    [DotLHS (obj field) (CSetField (desugar obj) (desugar field)
+                                                   (CPrim2 op
+                                                           (CGetField (desugar obj) (desugar field))
+                                                           (desugar value)))]
                     [else (error 'desugar "Handle other assignments")])]
     
     [PyPass () (CPass)]
@@ -149,17 +154,11 @@
 (define (get-vars [exprP : PyExpr]) : (listof symbol)
   (type-case PyExpr exprP
     [PyObject (fields) empty]
-    ;[DotP (obj field) empty]
-    ;[BracketP (obj field) empty]
-    ;[DotMethodP (obj field args) empty]
-    ;[BrackMethodP (obj field args) empty]
     
     ; lifted to top of FuncP, and not above it
     [PyFunc (args body) empty]
     [PyApp (func args) empty]
     ; don't lift past Defvar and Deffun
-    ;[DefvarP (id bind body) empty]
-    ;[DeffunP (name ids funbody body) empty]
     [PyId (name) empty]
     
     [PyWhile (test body) (get-vars body)]
@@ -181,15 +180,19 @@
                                  (append (get-vars then)
                                          (get-vars els)))]
     
+    [PyTry (body els excepts)
+           (append (append (get-vars body) (get-vars els))
+                   (foldl (lambda (exc vars) (append (get-vars exc) vars))
+                          empty
+                          excepts))]
+    [PyExcept (type body) (get-vars body)]
+    [PyNamedExcept (name type body) (get-vars body)]
+    [PyTryFinally (body final) (append (get-vars body) (get-vars final))]
+    
     [PyInt (n) empty]
     [PyStr (s) empty]
     [PyTrue () empty]
     [PyFalse () empty]
-    
-    #;[TryCatchP (body param catch)
-               (append (get-vars body)
-                       (get-vars catch))]
-    ;[PyRaise (exn) empty]
     
     [PyPrim (op args) empty]
     [PyPrimAssign (op lhs value) (get-vars value)]

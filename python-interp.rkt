@@ -11,7 +11,7 @@
   (let ([n (box 0)])
     (lambda ()
       (begin
-        (set-box! n(add1 (unbox n)))
+        (set-box! n (add1 (unbox n)))
         (unbox n)))))
 
 ;; lookup : symbol Env -> Location
@@ -85,6 +85,7 @@
                   [ReturnA (value store) (ExceptionA value store)]
                   [ValueA (value store) (ValueA (VClass bases new-fields) store)]))]
       [CGetField (obj field) (interp-getfield obj field env store)]
+      [CSetField (obj field value) (interp-setfield obj field value env store)]
       
       [CTrue () (ValueA (VTrue) store)]
       [CFalse () (ValueA (VFalse) store)]
@@ -100,8 +101,11 @@
                  [ReturnA (value store) (ExceptionA value store)]
                  [ValueA (value store) (ReturnA value store)])]
       
-      [CError (e) (interp-error (to-string (interp-env e env store)) store)]
-      [CReraise () (ExceptionA (VUndefined) store)]
+      [CError (exn)
+              (type-case AnswerC (interp-env exn env store)
+                [ExceptionA (value store) (ExceptionA value store)]
+                [ReturnA (value store) (ExceptionA value store)]
+                [ValueA (value store) (ExceptionA value store)])]
       
       [CIf (i t e)
            (type-case AnswerC (interp-env i env store)
@@ -139,42 +143,35 @@
               [ReturnA (value store) (ReturnA value store)]
               [ValueA (value store) (interp-env e2 env store)])]
       
-      [CApp (fun arges)
+      [CApp (func arges)
             ; catch ReturnA, and change to value
-            (type-case AnswerC (interp-app fun arges env store)
+            (type-case AnswerC (interp-env func env store)
               [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-              [ReturnA (value store) (ValueA value store)]
-              ; functions return None by default
-              [ValueA (value store) (ValueA (VNone) store)])]
+              [ReturnA (value store) (ReturnA value store)]
+              [ValueA (func-value store)
+                (type-case AnswerC (interp-app func-value arges env store)
+                  [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                  [ReturnA (value store) (ValueA value store)]
+                  ; functions return None by default
+                  [ValueA (value store) (ValueA (VNone) store)])])]
       [CFunc (varargs args defaults body) (ValueA (VClosure varargs args defaults body env) store)]
-      [CMeth (inst args defaults body) (ValueA (VMethod inst args defaults body env) store)]
       
       [CPrim1 (prim arg) (interp-prim1 prim arg env store)]
       [CPrim2 (prim left right) (interp-prim2 prim left right env store)]
       
       [CTry (body orelse excepts)
             (type-case AnswerC (interp-env body env store)
-              [ValueA (value store)
-                      (interp-env orelse env store)]
+              [ValueA (value store) (interp-env orelse env store)]
               [ReturnA (value store) (ReturnA value store)]
-              [ExceptionA (exn-val store)
-                          ; catch exception
-                          ;## USE THE CORRECT EXCEPT
-                          (type-case AnswerC (interp-env (first excepts) env store)
-                            [ExceptionA (val store) (ExceptionA (if (equal? val (VUndefined))
-                                                                    exn-val
-                                                                    val)
-                                                                store)]
-                            [ReturnA (value store) (ReturnA value store)]
-                            [ValueA (value store) (ValueA value store)])])]
+              ; catch exception
+              [ExceptionA (exn-val store) (interp-excepts excepts exn-val env store)])]
       [CTryFinally (body final)
                    (type-case AnswerC (interp-env body env store)
-                     [ExceptionA (exn-val store) (interp-env final env store)]
-                     ; ### maybe return should return right away
-                     [ReturnA (value store) (interp-env final env store)]
+                     ; handle re-raises
+                     [ExceptionA (exn-val store) (interp-try-clause final exn-val env store)]
+                     [ReturnA (value store) (ReturnA value store)]
                      [ValueA (value store) (interp-env final env store)])]
-      [CExcept (type body)
-               (interp-env body env store)]
+      [CExcept (type body) (interp-env body env store)]
       [CSet (id value)
             (local ([define loc (lookup id env)])
               (if (= -1 loc)
@@ -193,6 +190,66 @@
               (ValueA (VFalse) store))]))
   
   )
+
+;; interp-try-clause : CExp CVal Env Store -> AnswerC
+;; interprets an except or finally clause, handling re-raised exceptions
+(define (interp-try-clause [body : CExp] [exn-val : CVal] [env : Env] [store : Store]) : AnswerC
+  (type-case AnswerC (interp-env body env store)
+    [ExceptionA (val store)
+     ; if is reraise, replace exception
+     (type-case CVal val
+       [VInstance (bases fields)
+                  (if (equal? (VStr "No active exception")
+                              (type-case (optionof CVal) (hash-ref fields (VStr "message"))
+                                [some (v) v]
+                                [none () (VStr "")]))
+                      ; replace with last error
+                      (ExceptionA exn-val store)
+                      ; leave the re-raised error
+                      (ExceptionA val store))]
+       [else (ExceptionA val store)])]
+    [ReturnA (value store) (ReturnA value store)]
+    [ValueA (value store) (ValueA value store)]))
+
+;; interp-except : (listof CExp) Env Store -> AnswerC
+;; handles except cases after a try by matching the correct one
+(define (interp-excepts [excepts : (listof CExp)] [exn-val : CVal] [env : Env] [store : Store]) : AnswerC
+  (if (empty? excepts)
+      ; no except caught it, so just return the exception
+      (ExceptionA exn-val store)
+      (local ([define exc (first excepts)]
+              [define exc-type : CVal
+                (type-case AnswerC
+                  (interp-env (type-case CExp exc
+                                [CExcept (type body) type]
+                                [CNamedExcept (name type body) type]
+                                [else (error 'interp "Except not actually except statement")])
+                              env store)
+                  [ExceptionA (value store) (VUndefined)]
+                  [ReturnA (value store) (VUndefined)]
+                  [ValueA (value store) value])])
+        (cond
+          [(or
+            ; except clause for any exception
+            (equal? exc-type (VNone))
+            ; specific exception matched
+            (and (VInstance? exn-val)
+                 (VClass? exc-type)
+                 (member (first (VInstance-bases exn-val))
+                         (VClass-bases exc-type))))
+           ; matched except!
+           (type-case CExp exc
+             [CExcept (t body) (interp-try-clause body exn-val env store)]
+             [CNamedExcept (name t body)
+                           ; bind exception var
+                           (local ([define use-loc (new-loc)]
+                                   [define use-env (cons (binding name use-loc) env)])
+                             (begin
+                               (hash-set! store use-loc exn-val)
+                               (interp-try-clause body exn-val use-env store)))]
+             [else (error 'interp "Except not actually except statement")])]
+          ; no match, check next one
+          [else (interp-excepts (rest excepts) exn-val env store)]))))
 
 ;; interp-obj-fields : (listof FieldC) Env Store -> (listof FieldV)
 ;; interprets an object's fields to values
@@ -320,7 +377,20 @@
                             (display (pretty value))
                             value)]
                
-               ['to-string (VStr (pretty value))]
+               ['to-string
+                (type-case CVal value
+                  [VInstance (bases fields)
+                             ; call the instance's __str__ function
+                             (if (member (VStr "__str__") (hash-keys fields))
+                                 (type-case AnswerC (interp-app (some-v (hash-ref fields (VStr "__str__")))
+                                                                (CList #f empty)
+                                                                env store)
+                                   [ExceptionA (value store) value]
+                                   [ReturnA (value store) (VStr (pretty value))]
+                                   ; TODO: __str__ must return a string
+                                   [ValueA (value store) value])
+                                 (VStr (pretty value)))]
+                  [else (VStr (pretty value))])]
                ['to-tuple (type-case CVal value
                             [VStr (s) (VList #f (map (lambda (s) (VStr (list->string (list s))))
                                                      (string->list s)))]
@@ -333,7 +403,7 @@
                          [VFloat (n) (VStr "number")]
                          [VObject (fields) (VStr "object")]
                          [VClosure (varargs args body defaults env) (VStr "function")]
-                         [VMethod (inst args body defaults env) (VStr "function")]
+                         [VMethod (inst varargs args body defaults env) (VStr "function")]
                          [VTrue () (VStr "boolean")]
                          [VFalse () (VStr "boolean")]
                          [VUndefined () (VStr "undefined")]
@@ -538,7 +608,10 @@
                    (VTrue)
                    (VFalse))
                store)]
-       ; ################ VSTR
+       [VStr (s2)
+             (type-case CVal val1
+               [VStr (s1) (ValueA (if (string-in s1 s2) (VTrue) (VFalse)) store)]
+               [else (interp-error "Must test string in string" store)])]
        [else (interp-error
               (string-append (pretty val2)
                              " not iterable")
@@ -725,8 +798,8 @@
                          [VDict (htable)
                                 (cond
                                   ;[(equal? (VStr "update") field-val) (dict-update-lambda)]
-                                  [(equal? (VStr "get") field-val) (dict-get-lambda obj env)]
-                                  [(equal? (VStr "clear") field-val) (dict-clear-lambda obj env)]
+                                  [(equal? (VStr "get") field-val) (dict-get-lambda obj-val env)]
+                                  [(equal? (VStr "clear") field-val) (dict-clear-lambda obj-val env)]
                                   [else (VUndefined)])]
                          [VClass (bases fields)
                                  (type-case (optionof CVal) (hash-ref fields field-val)
@@ -739,40 +812,97 @@
                          [else (VUndefined)])
                        store)])]))
 
-;; interp-app : ExprC (listof ExprC) Env Store -> AnswerC
+;; interp-setfield : CExp CExp CExp Env Store -> AnswerC
+;; sets field values in objects
+(define (interp-setfield (obj : CExp) (field : CExp) (value : CExp) (env : Env) (store : Store)) : AnswerC
+  ; get the object
+  (type-case AnswerC (interp-env obj env store)
+    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+    [ReturnA (value store) (ReturnA value store)]
+    [ValueA (obj-val store)
+            ; get the field
+            (type-case AnswerC (interp-env field env store)
+              [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+              [ReturnA (value store) (ReturnA value store)]
+              [ValueA (field-val store)
+                      ; get the value
+                      (type-case AnswerC (interp-env value env store)
+                        [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                        [ReturnA (value store) (ReturnA value store)]
+                        [ValueA (value store)
+                          (begin
+                           (type-case CVal obj-val
+                             [VClass (bases fields) (hash-set! fields field-val value)]
+                             [VInstance (bases fields) (hash-set! fields field-val value)]
+                             [else (void)])
+                           (ValueA value store))])])]))
+
+;; interp-class-to-instance : (listof string) (hashof CVal CVal) CExp Env Store -> AnswerC
+;; creates an instance given a class, and calls the constructor if appropriate
+(define (interp-class-to-instance [bases : (listof string)] [fields : (hashof CVal CVal)]
+                                  [args : CExp] [env : Env] [store : Store]) : CVal
+  (local ([define new-fields (make-hash empty)]
+          [define new-instance (VInstance bases new-fields)])
+    (begin
+      (map (lambda (key)
+             (local ([define value (some-v (hash-ref fields key))])
+               (type-case CVal value
+                 ; change VClosure to VMethod
+                 [VClosure (varargs args defaults body env)
+                           (hash-set! new-fields key (VMethod new-instance varargs args defaults body env))]
+                 ; leave all other fields as-is
+                 [else (hash-set! new-fields key value)])))
+           (hash-keys fields))
+      ; call constructor
+      (if (member (VStr "__init__") (hash-keys new-fields))
+          (interp-app (some-v (hash-ref new-fields (VStr "__init__"))) args env store)
+          (ExceptionA (VUndefined) store))
+      ; return instance
+      new-instance)))
+
+;; interp-app : CVal CExp Env Store -> AnswerC
 ;; interprets function applications, checking for exceptions
-(define (interp-app [func : CExp] [args : (listof CExp)] [env : Env] [store : Store]) : AnswerC
-  (type-case AnswerC (interp-env func env store)
+(define (interp-app [func : CVal] [args : CExp] [env : Env] [store : Store]) : AnswerC
+  ; evaluate arguments
+  (type-case AnswerC (interp-env args env store)
     [ExceptionA (exn-val store) (ExceptionA exn-val store)]
     [ReturnA (value store) (ReturnA value store)]
     [ValueA (value store)
             (type-case CVal value
-              [VClosure (v a d b e)
-                        (interp-app-helper v value a args d
-                                           e env store)]
-              [VMethod (inst a d b e)
-                       (interp-app-helper #f value a (cons inst args) d
-                                          e env store)]
-              ; #### CHANGE THIS
-              [VClass (bases fields)
-                      (ReturnA (VInstance bases fields) store)]
-              [else (interp-error (string-append "Applied a non-function: " (pretty value)) store)])]))
+              [VList (mutable fields)
+                     (type-case CVal func
+                       [VClosure (v a d b e)
+                                 (interp-app-helper v func a fields d
+                                                    e env store)]
+                       ; add the first argument
+                       [VMethod (inst v a d b e)
+                                (local ([define newloc (new-loc)]
+                                        [define newenv (cons (binding (first a) newloc) e)])
+                                  (begin
+                                    (hash-set! store newloc inst)
+                                    (interp-app-helper v func (rest a) fields d
+                                                       newenv env store)))]
+                       ; #### CHANGE THIS
+                       [VClass (bases fields) (ReturnA (interp-class-to-instance bases fields args env store) store)]
+                       [else (interp-error (string-append "Applied a non-function: " (pretty func)) store)])]
+              [else (error 'interp "Application arguments not a list")])]))
 
-;; interp-app-helper : ValueC (listof symbol) (listof ExprC) Env Store -> AnswerC
+;; interp-app-helper : ValueC (listof symbol) (listof CVal) Env Store -> AnswerC
 ;; interprets a function application, by first recursively binding the arguments
 (define (interp-app-helper [varargs : boolean] [closure : CVal]
-                           [params : (listof symbol)] [args : (listof CExp)] [defaults : (listof CExp)]
+                           [params : (listof symbol)] [args : (listof CVal)] [defaults : (listof CExp)]
                            [closureEnv : Env] [appEnv : Env] [store : Store]) : AnswerC
-   (cond
+(begin
+  (cond
     ; apply!!
-    [(and (not varargs) (empty? params) (empty? args))
+    [(and (empty? params) (empty? args))
      (type-case CVal closure
        [VClosure (v a d body e) (interp-env body closureEnv store)]
-       [VMethod (inst a d body e) (interp-env body closureEnv store)]
+       [VMethod (inst v a d body e) (interp-env body closureEnv store)]
        [else (interp-error "Tried to apply non function" store)])]
     
     ; no app args, symbols still, use defaults
-    [(and (not varargs) (not (empty? params)) (empty? args) (not (empty? defaults)))
+    [(and (not (empty? params)) (empty? args) (not (empty? defaults)))
      (local ([define newloc (new-loc)]
              [define var-name (first params)]
              [define rest-def (if (empty? defaults) empty (rest defaults))])
@@ -791,39 +921,35 @@
     ; combine app args left into last symbol (var args)
     [(and varargs (= 1 (length params)))
      (local ([define newloc (new-loc)]
-             [define ans (interp-list-exp args appEnv store)])
-       (type-case ListFields ans
-         [LException (exn-val store) (ExceptionA exn-val store)]
-         [LFields (fields store)
-                  (type-case CVal closure
-                    [VClosure (v a d body e)
-                              (begin
-                                (hash-set! store newloc (VList #f fields))
-                                (interp-env body
-                                            (cons (binding (first params) newloc) closureEnv)
-                                            store))]
-                    [else (interp-error "Tried to apply non function" store)])]))]
+             [define ans args])
+       (type-case CVal closure
+         [VClosure (v a d body e)
+                   (begin
+                     (hash-set! store newloc (VList #f args))
+                     (interp-env body
+                                 (cons (binding (first params) newloc) closureEnv)
+                                 store))]
+         [else (interp-error "Tried to apply non function" store)]))]
     
     ; keep applying
     [(and (not (empty? params)) (not (empty? args)))
      (local ([define newloc (new-loc)]
+             [define arg-val (first args)]
              [define var-name (first params)]
+             
              [define rest-def (if (empty? defaults) empty (rest defaults))])
        ; evaluate argument value
-       (type-case AnswerC (interp-env (first args) appEnv store)
-         [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-         [ReturnA (value store) (ReturnA value store)]
-         [ValueA (value store)
-                 (begin
-                   (hash-set! store newloc value)
-                   (interp-app-helper varargs closure
-                                      (rest params) (rest args) rest-def
-                                      (cons (binding var-name newloc) closureEnv)
-                                      appEnv
-                                      store))]))]
+       (begin
+         (hash-set! store newloc arg-val)
+         (interp-app-helper varargs closure
+                            (rest params) (rest args) rest-def
+                            (cons (binding var-name newloc) closureEnv)
+                            appEnv
+                            store)))]
     
     [else (interp-error "Application failed with arity mismatch" store)]))
 
+)
 
 ;; print-object-exn : CVal (listof FieldV)
 ;; checks for a message field, and outputs the message if exists, value of the object if not
@@ -833,10 +959,7 @@
       (type-case FieldV (first fields)
         [fieldV (name value)
                 (if (equal? name "message")
-                    (begin
-                      (display val)
-                      (display "\n\n")
-                      (error 'interp (pretty value)))
+                    (error 'interp (pretty value))
                     (print-object-exn val (rest fields)))])))
 
 ;; print-error : CVal Store

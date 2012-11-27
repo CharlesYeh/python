@@ -96,11 +96,9 @@ structure that you define in python-syntax.rkt
                  ('body body)
                  ('decorator_list decorator_list))
      (PyAssign (IdLHS (string->symbol name))
-               (begin
-(PyClass (cons name (map (lambda (x) (symbol->string (PyId-x (get-structured-python x))))
+               (PyClass (cons name (map (lambda (x) (symbol->string (PyId-x (get-structured-python x))))
                                         bases))
-                        (get-structured-python body)))
-)]
+                        (get-structured-python body)))]
     
     [(hash-table ('nodetype "Return")
                  ('value value))
@@ -159,22 +157,20 @@ structure that you define in python-syntax.rkt
     [(hash-table ('nodetype "Raise")
                  ('exc exc)
                  ('cause cause))
-     ;(PyRaise (get-structured-python exc) (get-structured-python cause))
      (if (equal? #\nul exc)
          (PyReraise)
          (PyRaise (get-structured-python exc) (PyPass)))]
     [(hash-table ('nodetype "ExceptHandler")
                  ('type type)
-                 ('name name)    ; use this #############
+                 ('name name)
                  ('body body))
      (local ([define pytype (if (equal? #\nul type)
-                                (PyStr "")
+                                (PyNone)
                                 (get-structured-python type))]
              [define pybody (get-structured-python body)])
        (if (equal? #\nul name)
            (PyExcept pytype pybody)
-           (PyExcept pytype pybody)))]
-           ;(PyNamedExcept pytype name pybody))))]
+           (PyNamedExcept (string->symbol name) pytype pybody)))]
     
     [(hash-table ('nodetype "Pass"))
      (PyPass)]
@@ -218,20 +214,24 @@ structure that you define in python-syntax.rkt
                  ('target target)
                  ('op op)
                  ('value value))
-     ; assume is id for now
      (local ([define optype (string->symbol (hash-ref op 'nodetype))])
        (PyPrimAssign optype
-                     (IdLHS (PyId-x
-                             (get-structured-python target)))
+                     (local ([define lhs (get-structured-python (first target))])
+                       (cond
+                         [(PyId? lhs) (IdLHS (PyId-x lhs))]
+                         [(PyGetField? lhs) (DotLHS (PyGetField-obj lhs) (PyGetField-field lhs))]
+                         [else (error 'get-structured-python "Assignment to invalid destination")]))
                      (get-structured-python value)))]
     [(hash-table ('nodetype "Assign")
                  ('targets targets)
                  ('value value))
-     ; assume is id for now
-       (PyAssign (IdLHS (PyId-x
-                         (get-structured-python
-                          (first targets))))
-                 (get-structured-python value))]
+     (PyAssign
+       (local ([define lhs (get-structured-python (first targets))])
+         (cond
+           [(PyId? lhs) (IdLHS (PyId-x lhs))]
+           [(PyGetField? lhs) (DotLHS (PyGetField-obj lhs) (PyGetField-field lhs))]
+           [else (error 'get-structured-python "Assignment to invalid destination")]))
+       (get-structured-python value))]
     
     #;[(hash-table ('nodetype "Nonlocal")
                  ('names names))
