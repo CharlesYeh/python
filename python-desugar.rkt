@@ -63,8 +63,7 @@
             (if (= 1 (length args))
                 (CPrim1 op (desugar-helper (first args)))
                 (foldr (lambda (a res)
-                         (CPrim2 op res
-                                    (desugar-helper a)))
+                         (desugar-prim2-mapping op res (desugar-helper a)))
                        (desugar-helper (first args))
                        (rest args)))]
     
@@ -216,14 +215,17 @@
 ;; desugar-compare-helper (listof symbol) PyExpr (listof PyExpr) -> CExp
 ;; desugars the comparisons themselves, ANDing the comparisons together
 (define (desugar-compare-helper ops left args)
-  (begin
-    ;(display args)
-    (local ([define farg (first args)]
-            [define fop (first ops)])
-      (if (= 1 (length args))
-          (CPrim2 fop left farg)
-          (CPrim2 'And
-                  (CPrim2 fop left farg)
-                  (desugar-compare-helper (rest ops) farg (rest args))))))
-  )
+  (local ([define farg (first args)]
+          [define fop (first ops)])
+    (if (= 1 (length args))
+        (desugar-prim2-mapping fop left farg)
+        (CPrim2 'And
+                (desugar-prim2-mapping fop left farg)
+                (desugar-compare-helper (rest ops) farg (rest args))))))
+
+(define (desugar-prim2-mapping [op : symbol] [left : CExp] [right : CExp]) : CExp
+  (case op
+    ['NotIn (CPrim1 'Not (CPrim2 'In left right))]
+    [else (CPrim2 op left right)]))
+
 

@@ -419,6 +419,23 @@
                                        (VList #t (map (lambda (x) (VInt x))
                                                       (build-list n (lambda (x) x)))))]
                          [else (VUndefined)])]
+               ; min
+               ['min (type-case CVal value
+                       [VStr (s)
+                             (VStr (local ([define sl (string-to-chars s)])
+                                     (foldl (lambda (c m)
+                                              (if (< (atoi c) (atoi m)) c m))
+                                            (first sl)
+                                            sl)))]
+                       [else (VUndefined)])]
+               ['max (type-case CVal value
+                       [VStr (s)
+                             (VStr (local ([define sl (string-to-chars s)])
+                                     (foldl (lambda (c m)
+                                              (if (> (atoi c) (atoi m)) c m))
+                                            (first sl)
+                                            sl)))]
+                       [else (VUndefined)])]
                ['len (type-case CVal value
                        [VStr (s) (VInt (string-length s))]
                        [VObject (fields) (VInt (length fields))]
@@ -537,31 +554,25 @@
   (case op
     ; BOOLEAN PRIM
     ['Or
-     (ValueA (if
-              (or (get-truth-value val1)
-                  (get-truth-value val2))
-              (VTrue)
-              (VFalse))
+     (ValueA (if (or (get-truth-value val1)
+                     (get-truth-value val2))
+                 (VTrue)
+                 (VFalse))
              store)]
     ['And
-     (ValueA (if
-              (and (get-truth-value val1)
-                   (get-truth-value val2))
-              (VTrue)
-              (VFalse))
+     (ValueA (if (and (get-truth-value val1)
+                      (get-truth-value val2))
+                 (VTrue)
+                 (VFalse))
              store)]
     
     ; NUMBER PRIM
     ['FloorDiv
-     (type-case CVal val1
-       [VInt (n) (let ([n1 n])
-                   (type-case CVal val2
-                     [VInt (n) (let ([n2 n])
-                                 (if (= 0 n2)
-                                     (interp-throw-error 'ZeroDivisionError empty env store)
-                                     (ValueA (VInt (/ n1 n2)) store)))]
-                     [else (interp-error "Bad arguments for /" store)]))]
-       [else (interp-error "Bad arguments for /" store)])]
+     (local ([define n1 (to-number val1)]
+             [define n2 (to-number val2)])
+       (if (= n2 0)
+           (interp-throw-error 'ZeroDivisionError empty env store)
+           (ValueA (VInt (floor (/ n1 n2))) store)))]
     ['Mod
      (type-case CVal val1
        [VInt (n) (let ([n1 n])
@@ -645,24 +656,6 @@
              (type-case CVal val1
                [VStr (s1) (ValueA (if (string-in s1 s2) (VTrue) (VFalse)) store)]
                [else (interp-error "Must test string in string" store)])]
-       [else (interp-error
-              (string-append (pretty val2)
-                             " not iterable")
-              store)])]
-    ['NotIn
-     (type-case CVal val2
-       [VList (mutable fields)
-              (ValueA
-               (if (member val1 fields)
-                   (VFalse)
-                   (VTrue))
-               store)]
-       [VDict (htable)
-              (ValueA 
-               (if (member val1 (hash-keys htable))
-                   (VFalse)
-                   (VTrue))
-               store)]
        [else (interp-error
               (string-append (pretty val2)
                              " not iterable")

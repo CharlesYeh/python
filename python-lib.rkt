@@ -99,11 +99,11 @@ that calls the primitive `print`.
 
 (define min-lambda
   (CFunc #f (list 'arg1) empty
-         (CReturn (CPrim1 'len (CId 'arg1)))))
+         (CReturn (CPrim1 'min (CId 'arg1)))))
 
 (define max-lambda
   (CFunc #f (list 'arg1) empty
-         (CReturn (CPrim1 'len (CId 'arg1)))))
+         (CReturn (CPrim1 'max (CId 'arg1)))))
 
 (define len-lambda
   (CFunc #f (list 'arg1) empty
