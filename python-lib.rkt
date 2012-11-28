@@ -102,7 +102,7 @@ that calls the primitive `print`.
          (CReturn (CPrim1 'len (CId 'arg1)))))
 
 (define bool-lambda
-  (CFunc #f (list 'arg1) empty
+  (CFunc #f (list 'arg1) (list (CFalse))
     (CReturn
       (CIf (CId 'arg1)
            (CTrue)
@@ -133,6 +133,13 @@ that calls the primitive `print`.
 (define list-lambda
   (CFunc #f (list 'arg1) (list (CList #t empty))
     (CReturn (CPrim1 'to-list (CId 'arg1)))))
+
+(define abs-lambda
+  (CFunc #f (list 'arg1) empty
+         (CLet 'n-arg (CApp (CId 'float) (CList #f (list (CId 'arg1))))
+           (CReturn (CIf (CPrim2 'Gt (CInt 0) (CId 'n-arg))
+                         (CPrim1 'USub (CId 'n-arg))
+                         (CId 'n-arg))))))
 
 (define true-val
   (CTrue))
@@ -190,10 +197,12 @@ that calls the primitive `print`.
         (bind '___assertIn assert-in-lambda)
         (bind '___assertNotIn assert-not-in-lambda)
         (bind '___assertRaises assert-raises-lambda)
+
         (bind 'filter filter-lambda)
         (bind 'isinstance isinstance-lambda)
         (bind 'all all-lambda)
         (bind 'any any-lambda)
+
         (bind 'range range-lambda)
         (bind 'len len-lambda)
         (bind 'callable callable-lambda)
@@ -203,6 +212,7 @@ that calls the primitive `print`.
         (bind 'str str-lambda)
         (bind 'tuple tuple-lambda)
         (bind 'list list-lambda)
+        (bind 'abs abs-lambda)
 ))
 
 (define (python-lib expr)

@@ -243,14 +243,18 @@ structure that you define in python-syntax.rkt
     ; primitives
     [(hash-table ('nodetype "Num")
                  ('n n))
-     (match n
-       [(hash-table ('nodetype "Complex")
+      (cond
+        [(member (first (string->list ".")) (string->list (number->string n)))
+         (PyFloat n)]
+        [else (PyInt n)])]
+#|
+        [(hash-table ('nodetype "Complex")
                     ('value cn))
         (PyComplex (string->number (cond
                                      [(equal? (string-replace cn "+" "*") cn)
                                       (string-replace cn "j" "i")]
                                      [else (string-append "0+" (string-replace cn "j" "i"))])))]
-       [else (PyInt n)])]
+|#
     [(hash-table ('nodetype "Str")
                  ('s s))
      (PyStr s)]

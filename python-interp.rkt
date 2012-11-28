@@ -436,6 +436,11 @@
                         [VTrue () (VInt -1)]
                         [VFalse () (VInt 0)]
                         [else (VUndefined)])]
+               ['Invert (type-case CVal value
+                          [VInt (n) (VInt (- (- 0 n) 1))]
+                          [VTrue () (VInt -2)]
+                          [VFalse () (VInt -1)]
+                          [else (VUndefined)])]
                
                ; logical
                ['Not (if (get-truth-value value)
@@ -502,6 +507,16 @@
        (VFalse))
    store))
 
+;; to-number : CVal -> number
+;; converts a value to a number
+(define (to-number [val : CVal]) : number
+  (type-case CVal val
+    [VInt (n) n]
+    [VFloat (n) n]
+    [VTrue () 1]
+    [VFalse () 0]
+    [else (error 'interp "non-primitive can't be converted to number")]))
+
 ;; interp-prim2-helper : symbol ValueC ValueC Env Store -> AnswerC
 ;; interprets prim2 after exception checking is done in the main prim2c interpret function
 (define (interp-prim2-helper [op : symbol] [val1 : CVal] [val2 : CVal] [env : Env] [store : Store]) : AnswerC
@@ -544,56 +559,39 @@
                      [else (interp-error "Bad arguments for %" store)]))]
        [else (interp-error "Bad arguments for %" store)])]
     ['Div
-     (type-case CVal val1
-       [VInt (n) (let ([n1 n])
-                   (type-case CVal val2
-                     [VInt (n) (let ([n2 n])
-                                 (if (= 0 n2)
-                                     (interp-error "Division by zero" store)
-                                     (ValueA (VInt (/ n1 n2)) store)))]
-                     [else (interp-error "Bad arguments for /" store)]))]
-       [else (interp-error "Bad arguments for /" store)])]
+     (local ([define n1 (to-number val1)]
+             [define n2 (to-number val2)])
+       (ValueA (VInt (/ n1 n2)) store))]
     ['Mult
-     (type-case CVal val1
-       [VInt (n) (let ([n1 n])
-                   (type-case CVal val2
-                     [VInt (n) (let ([n2 n])
-                                 (ValueA (VInt (* n1 n2)) store))]
-                     [else (interp-error "Bad arguments for *" store)]))]
-       [else (interp-error "Bad arguments for *" store)])]
+     (local ([define n1 (to-number val1)]
+             [define n2 (to-number val2)])
+       (ValueA (VInt (* n1 n2)) store))]
     ['Add
-     ; int int -> int, otherwise yield float
-     (ValueA 
-      (type-case CVal val1
-        [VFloat (n1)
-                (type-case CVal val2
-                  [VFloat (n2) (VFloat (+ n1 n2))]
-                  [VInt (n2) (VFloat (+ n1 n2))]
-                  [else (VUndefined)])]
-        [VInt (n1) 
-              (type-case CVal val2
-                [VFloat (n2) (VFloat (+ n1 n2))]
-                [VInt (n2) (VInt (+ n1 n2))]
-                [else (VUndefined)])]
-        [else (VUndefined)])
-      store)]
+     (local ([define n1 (to-number val1)]
+             [define n2 (to-number val2)])
+       (ValueA (VInt (+ n1 n2)) store))]
     ['Sub
-     (ValueA (VInt (-
-                    (VInt-n val1)
-                    (VInt-n val2)))
-             store)]
+     (local ([define n1 (to-number val1)]
+             [define n2 (to-number val2)])
+       (ValueA (VInt (- n1 n2)) store))]
     
     ; LOGICAL PRIM
     ['Eq
-     (ValueA (if (equal? val1 val2)
-                 (VTrue)
-                 (VFalse))
-             store)]
+     (local ([define (int-to-float val)
+               (type-case CVal val
+                 [VInt (n) (VFloat (+ 0.0 n))]
+                 [else val])]
+             [define eq-val1 (int-to-float val1)]
+             [define eq-val2 (int-to-float val2)])
+       (ValueA (if (equal? eq-val1 eq-val2) (VTrue) (VFalse)) store))]
     ['NotEq
-     (ValueA (if (equal? val1 val2)
-                 (VFalse)
-                 (VTrue))
-             store)]
+     (local ([define (int-to-float val)
+               (type-case CVal val
+                 [VInt (n) (VFloat (+ 0.0 n))]
+                 [else val])]
+             [define eq-val1 (int-to-float val1)]
+             [define eq-val2 (int-to-float val2)])
+       (ValueA (if (equal? eq-val1 eq-val2) (VFalse) (VTrue)) store))]
     ['In
      (type-case CVal val2
        [VList (mutable fields)
