@@ -1,5 +1,4 @@
 #!/bin/bash
-: << 'END'
 echo "BOOLEANS"
 for file in python-reference/bool/*.py
 do
@@ -13,7 +12,6 @@ do
 	echo "${file}"
 	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
 done
-END
 
 echo "EXCEPTIONS"
 echo "try-except"

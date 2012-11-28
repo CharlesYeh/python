@@ -507,15 +507,29 @@
        (VFalse))
    store))
 
-;; to-number : CVal -> number
-;; converts a value to a number
-(define (to-number [val : CVal]) : number
-  (type-case CVal val
-    [VInt (n) n]
-    [VFloat (n) n]
-    [VTrue () 1]
-    [VFalse () 0]
-    [else (error 'interp "non-primitive can't be converted to number")]))
+(define (interp-compare [op : (number number -> boolean)] [val1 : CVal] [val2 : CVal]
+                        [env : Env] [store : Store]) : AnswerC
+  (cond
+    ; both values are numeric
+    [(and (numeric? val1)
+          (numeric? val2))
+     (local ([define n1 (to-number val1)]
+             [define n2 (to-number val2)])
+       (ValueA (if (op n1 n2) (VTrue) (VFalse)) store))]
+    ; both values are strings
+    [(and (VStr? val1) (VStr? val2))
+     (ValueA (if (op (compare-str (VStr-s val1) (VStr-s val2)) 0)
+                 (VTrue)
+                 (VFalse)) store)]
+    [else (interp-throw-error 'TypeError
+                              (list (CStr "unsupported operand type(s) for "))
+                              env store)]))
+
+(define (interp-throw-error [exc : symbol] [args : (listof CExp)] [env : Env] [store : Store]) : AnswerC
+  (type-case AnswerC (interp-env (CApp (CId exc) (CList #f args)) env store)
+    [ReturnA (value store) (ExceptionA value store)]
+    [ExceptionA (value store) (ExceptionA value store)]
+    [ValueA (value store) (ExceptionA value store)]))
 
 ;; interp-prim2-helper : symbol ValueC ValueC Env Store -> AnswerC
 ;; interprets prim2 after exception checking is done in the main prim2c interpret function
@@ -544,7 +558,7 @@
                    (type-case CVal val2
                      [VInt (n) (let ([n2 n])
                                  (if (= 0 n2)
-                                     (interp-error "Division by zero" store)
+                                     (interp-throw-error 'ZeroDivisionError empty env store)
                                      (ValueA (VInt (/ n1 n2)) store)))]
                      [else (interp-error "Bad arguments for /" store)]))]
        [else (interp-error "Bad arguments for /" store)])]
@@ -554,22 +568,43 @@
                    (type-case CVal val2
                      [VInt (n) (let ([n2 n])
                                  (if (= 0 n2)
-                                     (interp-error "Division by zero" store)
+                                     (interp-throw-error 'ZeroDivisionError empty env store)
                                      (ValueA (VInt (modulo n1 n2)) store)))]
                      [else (interp-error "Bad arguments for %" store)]))]
        [else (interp-error "Bad arguments for %" store)])]
     ['Div
      (local ([define n1 (to-number val1)]
              [define n2 (to-number val2)])
-       (ValueA (VInt (/ n1 n2)) store))]
+       (if (= n2 0)
+           (interp-throw-error 'ZeroDivisionError empty env store)
+           (ValueA (VInt (/ n1 n2)) store)))]
     ['Mult
-     (local ([define n1 (to-number val1)]
-             [define n2 (to-number val2)])
-       (ValueA (VInt (* n1 n2)) store))]
+     (cond
+       ; numeric
+       [(and (numeric? val1) (numeric? val2))
+        (local ([define n1 (to-number val1)]
+                [define n2 (to-number val2)])
+          (ValueA (VInt (* n1 n2)) store))]
+       [(or (and (VInt? val1) (VStr? val2))
+            (and (VInt? val2) (VStr? val1)))
+        (local ([define n (if (VInt? val1) (to-number val1) (to-number val2))]
+                [define s (if (VStr? val1) (VStr-s val1) (VStr-s val2))])
+          (ValueA (VStr (foldl (lambda (piece str)
+                                 (string-append str piece))
+                               ""
+                               (build-list n (lambda (x) s))))
+                  store))])]
     ['Add
-     (local ([define n1 (to-number val1)]
-             [define n2 (to-number val2)])
-       (ValueA (VInt (+ n1 n2)) store))]
+     (cond
+       ; numeric vals
+       [(and (numeric? val1) (numeric? val2))
+        (local ([define n1 (to-number val1)]
+                [define n2 (to-number val2)])
+          (ValueA (VInt (+ n1 n2)) store))]
+       ; string concat
+       [(and (VStr? val1) (VStr? val2))
+        (ValueA (VStr (string-append (VStr-s val1) (VStr-s val2))) store)]
+       [else (interp-error "TypeError" store)])]
     ['Sub
      (local ([define n1 (to-number val1)]
              [define n2 (to-number val2)])
@@ -634,82 +669,10 @@
               store)])]
     
     ; COMPARISON PRIM
-    ['Gt (type-case CVal val1
-           [VInt (n) (let ([n1 n])
-                       (type-case CVal val2
-                         [VInt (n) (ValueA
-                                    (if (> (VInt-n val1) (VInt-n val2))
-                                        (VTrue)
-                                        (VFalse))
-                                    store)]
-                         [else (interp-error (string-append "Bad arguments for >:\n"
-                                                            (string-append (pretty val1)
-                                                                           (string-append "\n"
-                                                                                          (pretty val2))))
-                                             store)]))]
-           [else (type-case CVal val2
-                   [VInt (n) (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                           store)]
-                   [else (interp-error (string-append "Bad arguments for >:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                       store)])])]
-    ['GtE (type-case CVal val1
-            [VInt (n) (let ([n1 n])
-                        (type-case CVal val2
-                          [VInt (n) (ValueA
-                                     (if (>= (VInt-n val1) (VInt-n val2))
-                                         (VTrue)
-                                         (VFalse))
-                                     store)]
-                          [else (interp-error (string-append "Bad arguments for >=:\n"
-                                                             (string-append (pretty val1)
-                                                                            (string-append "\n"
-                                                                                           (pretty val2))))
-                                              store)]))]
-            [else (type-case CVal val2
-                    [VInt (n) (interp-error (string-append "Bad arguments for >=:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                            store)]
-                    [else (interp-error (string-append "Bad arguments for >=:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                        store)])])]
-    
-    ['Lt (type-case CVal val1
-           [VInt (n) (let ([n1 n])
-                       (type-case CVal val2
-                         [VInt (n) (ValueA (if (< (VInt-n val1) (VInt-n val2))
-                                               (VTrue)
-                                               (VFalse))
-                                           store)]
-                         [else (interp-error
-                                (string-append "Bad arguments for <:\n"
-                                               (string-append (pretty val1)
-                                                              (string-append "\n" (pretty val2))))
-                                store)]))]
-           [else (type-case CVal val2
-                   [VInt (n) (interp-error (string-append "Bad arguments for <:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                           store)]
-                   [else (interp-error (string-append "Bad arguments for <:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                       store)])])]
-    ['LtE (type-case CVal val1
-            [VInt (n) (let ([n1 n])
-                        (type-case CVal val2
-                          [VInt (n) (ValueA (if (<= (VInt-n val1) (VInt-n val2))
-                                                (VTrue)
-                                                (VFalse))
-                                            store)]
-                          [VStr (s2) (ValueA (if (<= n (atoi s2)) (VTrue) (VFalse)) store)]
-                          [else (interp-error
-                                 (string-append "Bad arguments for <=:\n"
-                                                (string-append (pretty val1)
-                                                               (string-append "\n" (pretty val2))))
-                                 store)]))]
-            [VStr (s1) (type-case CVal val2
-                         [VInt (n2) (ValueA (if (<= (atoi s1) n2) (VTrue) (VFalse)) store)]
-                         [VStr (s2) (ValueA (if (<= (atoi s1) (atoi s2)) (VTrue) (VFalse)) store)]
-                         [else (interp-error "<= with string and non-string" store)])]
-            [else (type-case CVal val2
-                    [VInt (n) (interp-error (string-append "Bad arguments for <=:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                            store)]
-                    [else (interp-error (string-append "Bad arguments for <=:\n" (string-append (pretty val1) (string-append "\n" (pretty val2))))
-                                        store)])])]
+    ['Gt (interp-compare > val1 val2 env store)]
+    ['GtE (interp-compare >= val1 val2 env store)]
+    ['Lt (interp-compare < val1 val2 env store)]
+    ['LtE (interp-compare <= val1 val2 env store)]
     
     ['builtin-dict-get
      (type-case CVal val1

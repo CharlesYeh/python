@@ -73,7 +73,3 @@ primitives here.
 (define (print arg)
   (display (pretty arg)))
 
-(define (python-prim1 op arg)
-  (case op
-    [(print) (begin (print arg) arg)]))
-

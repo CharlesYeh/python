@@ -119,3 +119,40 @@ We hope to change these to class definitions
         ; search in later parts of haystack
         (string-in-helper needle (rest haystack)))))
 
+(define (compare-str [s1 : string] [s2 : string]) : number
+  (compare-str-helper (string-to-chars s1)
+                      (string-to-chars s2)))
+
+(define (compare-str-helper [s1 : (listof string)] [s2 : (listof string)]) : number
+  (cond
+    ; check emptiness
+    [(and (empty? s1) (empty? s2)) 0]
+    [(empty? s1) -1]
+    [(empty? s2) 1]
+    ; compare first char
+    [else (local ([define c1 (atoi (first s1))]
+                  [define c2 (atoi (first s2))])
+            (cond
+              [(= c1 c2) (compare-str-helper (rest s1) (rest s2))]
+              [(< c1 c2) -1]
+              [(> c1 c2) 1]))]))
+
+;; to-number : CVal -> number
+;; converts a value to a number
+(define (to-number [val : CVal]) : number
+  (type-case CVal val
+    [VInt (n) n]
+    [VFloat (n) n]
+    [VTrue () 1]
+    [VFalse () 0]
+    [else (error 'interp "non-primitive can't be converted to number")]))
+
+(define (numeric? [val : CVal]) : boolean
+  (type-case CVal val
+    [VInt (n) #t]
+    [VFloat (n) #t]
+    [VTrue () #t]
+    [VFalse () #t]
+    [else #f]))
+
+

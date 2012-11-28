@@ -97,6 +97,14 @@ that calls the primitive `print`.
                           ; constructors are callable
                           (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "class"))))))
 
+(define min-lambda
+  (CFunc #f (list 'arg1) empty
+         (CReturn (CPrim1 'len (CId 'arg1)))))
+
+(define max-lambda
+  (CFunc #f (list 'arg1) empty
+         (CReturn (CPrim1 'len (CId 'arg1)))))
+
 (define len-lambda
   (CFunc #f (list 'arg1) empty
          (CReturn (CPrim1 'len (CId 'arg1)))))
@@ -150,6 +158,9 @@ that calls the primitive `print`.
 (define none-val
   (CNone))
 
+(define ZeroDivisionError-def
+  (CClass (list "ZeroDivisionError" "BaseException") (make-hash empty)))
+
 (define IndexError-def
   (CClass (list "IndexError" "BaseException") (make-hash empty)))
 
@@ -184,7 +195,8 @@ that calls the primitive `print`.
         (bind 'False false-val)
         (bind 'None none-val)
 
-        (bind 'IndexError KeyError-def)
+        (bind 'ZeroDivisionError ZeroDivisionError-def)
+        (bind 'IndexError IndexError-def)
         (bind 'KeyError KeyError-def)
         (bind 'TypeError TypeError-def)
         (bind 'RuntimeError RuntimeError-def)
@@ -203,6 +215,8 @@ that calls the primitive `print`.
         (bind 'all all-lambda)
         (bind 'any any-lambda)
 
+        (bind 'min min-lambda)
+        (bind 'max max-lambda)
         (bind 'range range-lambda)
         (bind 'len len-lambda)
         (bind 'callable callable-lambda)

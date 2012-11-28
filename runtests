@@ -1,3 +1,16 @@
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-math.py
+#!/bin/bash
 
+echo "TYPES"
+test_comparisons
+test_div_zero
+test_simple_string_ops
+test_string_slices
+
+echo "BOOL"
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-compare-list-dict.py
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-isinstance.py
+
+echo "EXCEPTIONS"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/reraise.py
+
+
