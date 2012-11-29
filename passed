@@ -13,21 +13,12 @@ do
 	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
 done
 
-echo "EXCEPTIONS"
-echo "try-except"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/test-try-except.py
-echo "no-exception"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/test-try-except-no-exception.py
-echo "except-else"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/test-try-except-else.py
-echo "else-no-exc"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/try-except-else-no-exception.py
-echo "nested-else"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/nested-else.py
-echo "nested"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/nested.py
-
-
+echo "TYPES"
+for file in python-reference/exceptions/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
 
 echo "DICT"
 echo "bool"
@@ -59,20 +50,6 @@ racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/
 echo "length"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-length.py
 
-
-echo "TYPES"
-echo "booleans"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_booleans.py
-echo "test_div_zero"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_div_zero.py
-echo "test_floats"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_floats.py
-echo "types_truthy1"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/types_truthy1.py
-echo "types_truthy2"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/types_truthy2.py
-echo "test_simple_strings"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_simple_strings.py
 
 
 echo "SCOPE"

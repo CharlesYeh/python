@@ -1,10 +1,7 @@
 #!/bin/bash
 
 echo "TYPES"
-test_comparisons
-test_div_zero
-test_simple_string_ops
-test_string_slices
+racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_string_slices.py
 
 echo "BOOL"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-compare-list-dict.py
@@ -13,4 +10,15 @@ racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/
 echo "EXCEPTIONS"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/reraise.py
 
+DICT
+dict-contains.py
+dict-get.py
+dict-clear.py
+
+TUPLE
+tuple-add.py
+
+BUILTIN
+isinstance
+filter
 
