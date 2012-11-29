@@ -216,7 +216,7 @@ structure that you define in python-syntax.rkt
                  ('value value))
      (local ([define optype (string->symbol (hash-ref op 'nodetype))])
        (PyPrimAssign optype
-                     (local ([define lhs (get-structured-python (first target))])
+                     (local ([define lhs (get-structured-python target)])
                        (cond
                          [(PyId? lhs) (IdLHS (PyId-x lhs))]
                          [(PyGetField? lhs) (DotLHS (PyGetField-obj lhs) (PyGetField-field lhs))]

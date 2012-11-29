@@ -11,7 +11,7 @@ We hope to change these to class definitions
 
 ;; method for dict.get(key)
 (define (dict-get-lambda (self : CVal) (env : Env)) : CVal
-  (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CUndefined) (CNone))
+  (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CNone))
     (CLet 'temp-val (CPrim2 'builtin-dict-get (CId 'self) (CId 'key))
       ; return default if None
       (CIf (CPrim2 'Eq (CId 'temp-val) (CNone))
@@ -21,7 +21,7 @@ We hope to change these to class definitions
 
 ;; method for dict.clear()
 (define (dict-clear-lambda (self : CVal) (env : Env)) : CVal
-  (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CUndefined) (CNone))
+  (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CNone))
     (CPrim1 'builtin-dict-clear (CId 'self))
     env))
 

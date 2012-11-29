@@ -1,4 +1,11 @@
 #!/bin/bash
+echo "TUPLE"
+for file in python-reference/tuple/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
+
 echo "BOOLEANS"
 for file in python-reference/bool/*.py
 do
@@ -38,18 +45,6 @@ echo "truth"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/lists/test_list_truth.py
 echo "simple"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/lists/test_list_simple.py
-
-
-echo "TUPLE"
-echo "cons"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-constructors.py
-echo "add"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-add.py
-echo "truth"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-truth.py
-echo "length"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-length.py
-
 
 
 echo "SCOPE"

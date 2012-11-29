@@ -18,7 +18,7 @@ primitives here.
   (type-case CVal arg
     [VInt (n) (to-string n)]
     [VFloat (n) (to-string n)]
-    [VStr (s) (string-append (string-append "'" s) "'")]
+    [VStr (s) (string-append s "\n")]
     
     [VTrue () "True"]
     [VFalse () "False"]
@@ -30,9 +30,9 @@ primitives here.
     
     [VClosure (varargs args defaults body env) (error 'prim (to-string body))]
     [VMethod (inst varargs args defaults body env) (error 'prim (to-string body))]
-    [VObject (fields) (error 'prim "Can't print objs yet")]
     [VClass (bases fields) "class"]
-    [VInstance (bases fields) "instance"]))
+    [VInstance (bases fields) "instance"]
+    [VGenerator (expr env) "generator"]))
   
 (define (pretty-list arg)
   (string-append

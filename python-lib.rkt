@@ -12,7 +12,44 @@ that calls the primitive `print`.
 
 |#
 
+(define (throw-error [error : symbol] [args : (listof CExp)]) : CExp
+  (CApp (CId error) (CList #f args)))
+
 (define-type-alias Lib (CExp -> CExp))
+
+(define StopIteration-def
+  (CClass (list "StopIteration" "BaseException") (make-hash empty)))
+
+(define ZeroDivisionError-def
+  (CClass (list "ZeroDivisionError" "BaseException") (make-hash empty)))
+
+(define IndexError-def
+  (CClass (list "IndexError" "BaseException") (make-hash empty)))
+
+(define KeyError-def
+  (CClass (list "KeyError" "BaseException") (make-hash empty)))
+
+(define ValueError-def
+  (CClass (list "ValueError" "BaseException") (make-hash empty)))
+
+(define TypeError-def
+  (CClass (list "TypeError" "BaseException") (make-hash empty)))
+
+(define RuntimeError-def
+  (CClass (list "RuntimeError" "BaseException")
+          (local ([define fields (make-hash empty)])
+            (begin
+              (hash-set! fields (CStr "message") (CStr ""))
+              (hash-set! fields (CStr "__init__") (CFunc #f
+                                                         (list 'self 'message)
+                                                         (list (CStr "No active exception"))
+                                                         (CSetField (CId 'self) (CStr "message") (CId 'message))))
+              (hash-set! fields (CStr "__str__") (CFunc #f
+                                                        (list 'self)
+                                                        empty
+                                                        (CReturn (CGetField (CId 'self) (CStr "message")))))
+              fields
+              ))))
 
 (define print-lambda
   (CFunc #f (list 'to-print) empty
@@ -83,12 +120,35 @@ that calls the primitive `print`.
          (CReturn (CPrim2 'isinstance (CId 'a) (CId 'b)))))
 
 (define range-lambda
-  (CFunc #f (list 'start 'stop 'step) (list (CUndefined) (CNone) (CInt 1))
-         ;(CIf (CPrim2 'Eq (CId 'stop) (CNone))
-              ; use start as stop, start at 0 ##############
-              ;(CReturn (CId 'start))
-              (CReturn (CPrim1 'range (CId 'start)))))
-;)
+  (CFunc #f (list 'start 'stop 'step) (list (CUndefined) (CUndefined) (CInt 1))
+         (CSeq
+           ; if only one arg, set (stop = start), and (start = 0)
+           (CIf (CPrim2 'Eq (CId 'stop) (CUndefined))
+                (CSeq (CSet 'stop (CId 'start)) (CSet 'start (CInt 0)))
+                (CPass))
+           ; test for errors, step = 0
+           (CIf (CPrim2 'Eq (CId 'step) (CInt 0))
+                (throw-error 'TypeError empty))
+                ; error: start, stop, or step are not ints
+                (CIf (CPrim2 'Or
+                             (CPrim2 'Or
+                                     (CPrim2 'NotEq (CPrim1 'tagof (CId 'start)) (CStr "int"))
+                                     (CPrim2 'NotEq (CPrim1 'tagof (CId 'start)) (CStr "int")))
+                             (CPrim2 'NotEq (CPrim1 'tagof (CId 'step)) (CStr "int")))
+                     (throw-error 'TypeError empty)
+                     ; no errors, generate!
+                     (CGenerator
+                       (CLet 'curr-value (CId 'start)
+                          ; end condition?
+                          (CIf (CPrim2 'Or
+                                       (CPrim2 'And (CPrim2 'Lt (CId 'step) (CInt 0))
+                                                    (CPrim2 'LtE '(CId 'curr-value) (CId 'stop)))
+                                       (CPrim2 'And (CPrim2 'Gt (CId 'step) (CInt 0))
+                                                    (CPrim2 'GtE '(CId 'curr-value) (CId 'stop))))
+                           (throw-error 'StopIteration empty)
+                           (CSeq
+                             (CSet 'start (CPrim2 'Add (CId 'start) (CId 'step)))
+                             (CReturn (CId 'start))))))))))
 
 (define callable-lambda
   (CFunc #f (list 'arg1) empty
@@ -158,48 +218,21 @@ that calls the primitive `print`.
 (define none-val
   (CNone))
 
-(define ZeroDivisionError-def
-  (CClass (list "ZeroDivisionError" "BaseException") (make-hash empty)))
-
-(define IndexError-def
-  (CClass (list "IndexError" "BaseException") (make-hash empty)))
-
-(define KeyError-def
-  (CClass (list "KeyError" "BaseException") (make-hash empty)))
-
-(define TypeError-def
-  (CClass (list "TypeError" "BaseException") (make-hash empty)))
-
-(define RuntimeError-def
-  (CClass (list "RuntimeError" "BaseException")
-          (local ([define fields (make-hash empty)])
-            (begin
-              (hash-set! fields (CStr "message") (CStr ""))
-              (hash-set! fields (CStr "__init__") (CFunc #f
-                                                         (list 'self 'message)
-                                                         (list (CStr "No active exception"))
-                                                         (CSetField (CId 'self) (CStr "message") (CId 'message))))
-              (hash-set! fields (CStr "__str__") (CFunc #f
-                                                        (list 'self)
-                                                        empty
-                                                        (CReturn (CGetField (CId 'self) (CStr "message")))))
-              fields
-              ))))
-
 (define-type LibBinding
   [bind (left : symbol) (right : CExp)])
 
 (define lib-functions
-  (list (bind 'print print-lambda)
-        (bind 'True true-val)
-        (bind 'False false-val)
-        (bind 'None none-val)
-
+  (list
+        (bind 'StopIteration StopIteration-def)
         (bind 'ZeroDivisionError ZeroDivisionError-def)
         (bind 'IndexError IndexError-def)
         (bind 'KeyError KeyError-def)
+        (bind 'ValueError ValueError-def)
         (bind 'TypeError TypeError-def)
         (bind 'RuntimeError RuntimeError-def)
+        (bind 'True true-val)
+        (bind 'False false-val)
+        (bind 'None none-val)
 
         (bind '___assertTrue assert-true-lambda)
         (bind '___assertFalse assert-false-lambda)
@@ -210,6 +243,7 @@ that calls the primitive `print`.
         (bind '___assertNotIn assert-not-in-lambda)
         (bind '___assertRaises assert-raises-lambda)
 
+        (bind 'print print-lambda)
         (bind 'filter filter-lambda)
         (bind 'isinstance isinstance-lambda)
         (bind 'all all-lambda)

@@ -22,6 +22,8 @@ ParselTongue.
   [CSetField (obj : CExp) (field : CExp) (value : CExp)]
   [CClass (bases : (listof string)) (fields : (hashof CExp CExp))]
   
+  [CGenerator (genexp : CExp)]
+  
   [CTrue]
   [CFalse]
   [CNone]
@@ -52,9 +54,8 @@ ParselTongue.
   [CPrim1 (prim : symbol) (arg : CExp)]
   [CPrim2 (prim : symbol) (left : CExp) (right : CExp)]
   
-  [CObject (fields : (listof FieldC))]
   [CSet (id : symbol) (value : CExp)])
-
+  
 (define-type FieldV
   [fieldV (name : string) (value : CVal)])
 
@@ -74,7 +75,7 @@ ParselTongue.
   ; closure from an instance
   [VMethod (inst : CVal) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   
-  [VObject (fields : (listof FieldV))]
+  [VGenerator (expr : CExp) (env : Env)]
   [VList (mutable : boolean) (fields : (listof CVal))]
   [VDict (htable : (hashof CVal CVal))]
   [VClass (bases : (listof string)) (fields : (hashof CVal CVal))]
@@ -99,12 +100,10 @@ ParselTongue.
 
 ; convenience method for interpretation errors
 (define (interp-error str store)
-  (ExceptionA (VObject (list (fieldV "message" (VStr str))
-                             (fieldV "type" (VStr "Python")))) store))
+  (error 'interp (string-append "THIS IS AN ERROR" str)))
 
 ; convenience method for desugaring errors
 (define (desugar-error str)
-  (CError (CObject (list (fieldC "message" (CStr str))
-                         (fieldC "type" (CStr "Python"))))))
+  (error 'desugar (string-append "THIS IS AN ERROR" str)))
 
 

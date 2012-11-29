@@ -25,6 +25,9 @@
             (binding-value node)
             (lookup name (rest env))))))
 
+(define (env-bind [env : Env] [var : symbol] [addr : Location]) : Env
+  (cons (binding var addr) env))
+
 ;; get-truth-value : CVal -> boolean
 ;; the truth value definitions of different types when used as a boolean
 (define (get-truth-value value)
@@ -132,7 +135,7 @@
               [ValueA (value store)
                       ; insert binding
                       (local ([define use-loc (new-loc)]
-                              [define use-env (cons (binding x use-loc) env)])
+                              [define use-env (env-bind env x use-loc)])
                         (begin
                           (hash-set! store use-loc value)
                           (interp-env body use-env store)))])]
@@ -172,18 +175,7 @@
                      [ReturnA (value store) (ReturnA value store)]
                      [ValueA (value store) (interp-env final env store)])]
       [CExcept (type body) (interp-env body env store)]
-      [CSet (id value)
-            (local ([define loc (lookup id env)])
-              (if (= -1 loc)
-                  (interp-error (string-append "Unbound identifier: " (symbol->string id)) store)
-                  (type-case AnswerC (interp-env value env store)
-                    [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-                    [ReturnA (value store) (ReturnA value store)]
-                    [ValueA (val store)
-                            (begin
-                              (hash-set! store loc val)
-                              (ValueA val store))])))]
-      
+      [CGenerator (expr) (ValueA (VGenerator expr env) store)]
       [else (begin
               (display expr)
               (display "WHAAAT\n\n")
@@ -243,32 +235,13 @@
              [CNamedExcept (name t body)
                            ; bind exception var
                            (local ([define use-loc (new-loc)]
-                                   [define use-env (cons (binding name use-loc) env)])
+                                   [define use-env (env-bind env name use-loc)])
                              (begin
                                (hash-set! store use-loc exn-val)
                                (interp-try-clause body exn-val use-env store)))]
              [else (error 'interp "Except not actually except statement")])]
           ; no match, check next one
           [else (interp-excepts (rest excepts) exn-val env store)]))))
-
-;; interp-obj-fields : (listof FieldC) Env Store -> (listof FieldV)
-;; interprets an object's fields to values
-(define (interp-obj-fields [fs : (listof FieldC)] [env : Env] [store : Store]) : ObjectFields
-  (if (empty? fs)
-      (ObjFields empty store)
-      ; interp first, and recurse on rest
-      (type-case FieldC (first fs)
-        [fieldC (name value)
-                (local ([define (obj-lambda value store)
-                          (type-case ObjectFields (interp-obj-fields (rest fs) env store)
-                            [ObjException (exn-val store) (ObjException exn-val store)]
-                            [ObjFields (fields store) (ObjFields (cons (fieldV name value) fields) store)])])
-                  ; check value to set to
-                  (type-case AnswerC (interp-env value env store)
-                    [ExceptionA (exn-val store) (ObjException exn-val store)]
-                    ; eval rest of fields
-                    [ReturnA (value store) (obj-lambda value store)]
-                    [ValueA (value store) (obj-lambda value store)]))])))
 
 ;; ListFields
 ;; used to allow the object field interpret to return an exception
@@ -327,6 +300,26 @@
                                                 new-hash
                                                 (rest exprs) env store))]))]))]))
 
+;##### TODO: generator->list
+#|
+(define (interp-generator-list [expr : CExp] [env : Env] [store : Store]) : ListFields
+  (type-case AnswerC (interp-env expr env store)
+    ; test for StopIteration
+    [ExceptionA (value store)
+                (if (and (VInstance? value)
+                         (equal? (first (VInstance-bases value)) "StopIteration"))
+                    (LFields empty store)
+                    (LException value store))]
+    [ValueA (value store) (interp-throw-error 'StopIteration empty env store)]
+    [ReturnA (value store)
+             (type-case ListFields (interp-generator-list expr env store)
+               [LFields (fields store)
+                        (LFields (cons (interp-env expr env store)
+                                       fields)
+                                 store)]
+               [LException (exn-val store) (LException exn-val store)])]))
+|#
+
 
 ;; interp-prim1 : symbol ExprC Env Store -> Result
 ;; interprets a single argument primitive operation
@@ -342,6 +335,13 @@
                                                             (string->list s)))
                                              store)]
                            [VList (mutable fields) (ValueA (VList #t fields) store)]
+#|
+                           [VGenerator (expr env)
+                                       (type-case ListFields (interp-generator-list expr env store)
+                                         [LFields (fields store)
+                                                  (ValueA (VList #t (interp-generator-list expr env store)) store)]
+                                         [LException (exn-val store) (ExceptionA exn-val store)])]
+|#
                            [else (interp-error "to-list bad argument" store)])]
                [else
             (ValueA
@@ -399,9 +399,8 @@
                
                ['tagof (type-case CVal value
                          [VStr (s) (VStr "string")]
-                         [VInt (n) (VStr "number")]
-                         [VFloat (n) (VStr "number")]
-                         [VObject (fields) (VStr "object")]
+                         [VInt (n) (VStr "int")]
+                         [VFloat (n) (VStr "float")]
                          [VClosure (varargs args body defaults env) (VStr "function")]
                          [VMethod (inst varargs args body defaults env) (VStr "function")]
                          [VTrue () (VStr "boolean")]
@@ -411,14 +410,9 @@
                          [VList (mutable fields) (VStr "list")]
                          [VDict (htable) (VStr "hash")]
                          [VClass (bases fields) (VStr "class")]
-                         [VInstance (bases fields) (VStr "instance")])]
-               ;########### MOVE TO PRIM 2, and use lambda
-               ['range (type-case CVal value
-                         [VInt (n) (if (> 0 n)
-                                       (VList #t empty)
-                                       (VList #t (map (lambda (x) (VInt x))
-                                                      (build-list n (lambda (x) x)))))]
-                         [else (VUndefined)])]
+                         [VInstance (bases fields) (VStr "instance")]
+                         [VGenerator (expr env) (VStr "generator")])]
+               
                ; min
                ['min (type-case CVal value
                        [VStr (s)
@@ -438,7 +432,6 @@
                        [else (VUndefined)])]
                ['len (type-case CVal value
                        [VStr (s) (VInt (string-length s))]
-                       [VObject (fields) (VInt (length fields))]
                        [VList (mutable fields) (VInt (length fields))]
                        [VDict (htable) (VInt (length (hash-keys htable)))]
                        [else (VUndefined)])]
@@ -604,6 +597,18 @@
                                  (string-append str piece))
                                ""
                                (build-list n (lambda (x) s))))
+                  store))]
+       [(or (and (VList? val2) (VInt? val1))
+            (and (VList? val1) (VInt? val2)))
+        (local ([define first-num (VInt? val1)]
+                [define n (if first-num (to-number val1) (to-number val2))]
+                [define li-val (if first-num val2 val1)]
+                [define li-fields (VList-fields li-val)]
+                [define li-mutable (VList-mutable li-val)])
+          (ValueA (VList li-mutable
+                         (foldl (lambda (piece res) (append piece res))
+                                empty
+                                (build-list n (lambda (x) li-fields))))
                   store))])]
     ['Add
      (cond
@@ -615,7 +620,14 @@
        ; string concat
        [(and (VStr? val1) (VStr? val2))
         (ValueA (VStr (string-append (VStr-s val1) (VStr-s val2))) store)]
-       [else (interp-error "TypeError" store)])]
+       [(and (VList? val1) (VList? val1))
+        (cond
+          [(equal? (VList-mutable val1) (VList-mutable val2))
+           (ValueA (VList (VList-mutable val1)
+                          (append (VList-fields val1) (VList-fields val2)))
+                   store)]
+          [else (interp-throw-error 'TypeError empty env store)])]
+       [else (interp-throw-error 'TypeError empty env store)])]
     ['Sub
      (local ([define n1 (to-number val1)]
              [define n2 (to-number val2)])
@@ -723,7 +735,7 @@
                        (begin
                          (hash-set! store newloc item)
                          ; check result for whether to filter out or not
-                         (type-case AnswerC (interp-env body (cons (binding arg newloc) env) store)
+                         (type-case AnswerC (interp-env body (env-bind env arg newloc) store)
                            [ExceptionA (exn-val store) (ExceptionA exn-val store)]
                            [ValueA (value store) (interp-builtin-filter closure (rest iter) result store)]
                            [ReturnA (value store) (if (get-truth-value value)
@@ -831,7 +843,7 @@
                        ; add the first argument
                        [VMethod (inst v a d b e)
                                 (local ([define newloc (new-loc)]
-                                        [define newenv (cons (binding (first a) newloc) e)])
+                                        [define newenv (env-bind e (first a) newloc)])
                                   (begin
                                     (hash-set! store newloc inst)
                                     (interp-app-helper v func (rest a) fields d
@@ -860,17 +872,19 @@
      (local ([define newloc (new-loc)]
              [define var-name (first params)]
              [define rest-def (if (empty? defaults) empty (rest defaults))])
-       (type-case AnswerC (interp-env (first defaults) appEnv store)
-         [ExceptionA (exn-val store) (ExceptionA exn-val store)]
-         [ReturnA (value store) (ReturnA value store)]
-         [ValueA (value store)
-                 (begin
-                   (hash-set! store newloc value)
-                   (interp-app-helper varargs closure
-                                      (rest params) empty rest-def
-                                      (cons (binding var-name newloc) closureEnv)
-                                      appEnv
-                                      store))]))]
+       (if (equal? (first defaults) (CUndefined))
+           (interp-throw-error 'TypeError empty closureEnv store)
+           (type-case AnswerC (interp-env (first defaults) appEnv store)
+             [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+             [ReturnA (value store) (ReturnA value store)]
+             [ValueA (value store)
+                     (begin
+                       (hash-set! store newloc value)
+                       (interp-app-helper varargs closure
+                                          (rest params) empty rest-def
+                                          (env-bind closureEnv var-name newloc)
+                                          appEnv
+                                          store))])))]
     
     ; combine app args left into last symbol (var args)
     [(and varargs (= 1 (length params)))
@@ -881,7 +895,7 @@
                    (begin
                      (hash-set! store newloc (VList #f args))
                      (interp-env body
-                                 (cons (binding (first params) newloc) closureEnv)
+                                 (env-bind closureEnv (first params) newloc)
                                  store))]
          [else (interp-error "Tried to apply non function" store)]))]
     
@@ -897,29 +911,18 @@
          (hash-set! store newloc arg-val)
          (interp-app-helper varargs closure
                             (rest params) (rest args) rest-def
-                            (cons (binding var-name newloc) closureEnv)
+                            (env-bind closureEnv var-name newloc)
                             appEnv
                             store)))]
     
-    [else (interp-error "Application failed with arity mismatch" store)]))
+    ; arity mismatch
+    [else (interp-throw-error 'TypeError empty appEnv store)]))
 
 )
-
-;; print-object-exn : CVal (listof FieldV)
-;; checks for a message field, and outputs the message if exists, value of the object if not
-(define (print-object-exn (val : CVal) (fields : (listof FieldV)))
-  (if (empty? fields)
-      (error 'interp (pretty val))
-      (type-case FieldV (first fields)
-        [fieldV (name value)
-                (if (equal? name "message")
-                    (error 'interp (pretty value))
-                    (print-object-exn val (rest fields)))])))
 
 ;; print-error : CVal Store
 ;; prints the exception output given the exn-val
 (define (print-error (exn-val : CVal) (store : Store))
   (type-case CVal exn-val
-    [VObject (fields) (print-object-exn exn-val fields)]
     [else (error 'interp (pretty exn-val))]))
 
