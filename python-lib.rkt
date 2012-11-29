@@ -128,7 +128,7 @@ that calls the primitive `print`.
                 (CPass))
            ; test for errors, step = 0
            (CIf (CPrim2 'Eq (CId 'step) (CInt 0))
-                (throw-error 'TypeError empty))
+                (throw-error 'TypeError empty)
                 ; error: start, stop, or step are not ints
                 (CIf (CPrim2 'Or
                              (CPrim2 'Or
@@ -142,13 +142,13 @@ that calls the primitive `print`.
                           ; end condition?
                           (CIf (CPrim2 'Or
                                        (CPrim2 'And (CPrim2 'Lt (CId 'step) (CInt 0))
-                                                    (CPrim2 'LtE '(CId 'curr-value) (CId 'stop)))
+                                                    (CPrim2 'LtE (CId 'curr-value) (CId 'stop)))
                                        (CPrim2 'And (CPrim2 'Gt (CId 'step) (CInt 0))
-                                                    (CPrim2 'GtE '(CId 'curr-value) (CId 'stop))))
+                                                    (CPrim2 'GtE (CId 'curr-value) (CId 'stop))))
                            (throw-error 'StopIteration empty)
                            (CSeq
                              (CSet 'start (CPrim2 'Add (CId 'start) (CId 'step)))
-                             (CReturn (CId 'start))))))))))
+                             (CReturn (CId 'start)))))))))))
 
 (define callable-lambda
   (CFunc #f (list 'arg1) empty
