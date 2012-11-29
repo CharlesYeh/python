@@ -14,19 +14,28 @@
         (set-box! n (add1 (unbox n)))
         (unbox n)))))
 
+(define (new-store)
+  (make-hash empty))
+
+(define (new-env)
+  (list (make-hash empty)))
+
+(define (extend-env [env : Env]) : Env
+  (cons (make-hash empty) env))
+
 ;; lookup : symbol Env -> Location
 ;; finds the location of a symbol in the environment
 (define (lookup [name : symbol] [env : Env]) : Location
   (if (empty? env)
-      ; if undefined, look for previous value
       -1
-      (let ([node (first env)])
-        (if (equal? name (binding-name node))
-            (binding-value node)
-            (lookup name (rest env))))))
+      (type-case (optionof Location) (hash-ref (first env) name)
+        [some (v) v]
+        [none () (lookup name (rest env))])))
 
 (define (env-bind [env : Env] [var : symbol] [addr : Location]) : Env
-  (cons (binding var addr) env))
+  (begin
+    (hash-set! (first env) var addr)
+    env))
 
 ;; get-truth-value : CVal -> boolean
 ;; the truth value definitions of different types when used as a boolean
@@ -52,7 +61,7 @@
 ;; interp : CExp -> CVal
 (define (interp expr)
   ; catch exception at top level
-  (type-case AnswerC (interp-env expr empty (make-hash empty))
+  (type-case AnswerC (interp-env expr (new-env) (new-store))
     [ExceptionA (exn-val store) (print-error exn-val store)]
     [ReturnA (value store) (print-error value store)]
     [ValueA (val store) val]))
@@ -94,7 +103,7 @@
       [CFalse () (ValueA (VFalse) store)]
       [CNone () (ValueA (VNone) store)]
       
-      ; is not actually used as a value
+      ; this is used "unbound"
       [CUndefined () (ValueA (VUndefined) store)]
       
       [CPass () (ValueA (VUndefined) store)]
@@ -152,7 +161,7 @@
               [ExceptionA (exn-val store) (ExceptionA exn-val store)]
               [ReturnA (value store) (ReturnA value store)]
               [ValueA (func-value store)
-                (type-case AnswerC (interp-app func-value arges env store)
+                (type-case AnswerC (interp-app func-value arges (extend-env env) store)
                   [ExceptionA (exn-val store) (ExceptionA exn-val store)]
                   [ReturnA (value store) (ValueA value store)]
                   ; functions return None by default

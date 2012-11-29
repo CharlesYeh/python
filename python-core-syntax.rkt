@@ -95,7 +95,8 @@ ParselTongue.
 (define-type Binding
   [binding (name : symbol) (value : Location)])
 
-(define-type-alias Env (listof Binding))
+(define-type-alias Scope (hashof symbol Location))
+(define-type-alias Env (listof Scope))
 (define-type-alias Store (hashof Location CVal))
 
 ; convenience method for interpretation errors
