@@ -35,6 +35,9 @@ that calls the primitive `print`.
 (define TypeError-def
   (CClass (list "TypeError" "BaseException") (make-hash empty)))
 
+(define NameError-def
+  (CClass (list "NameError" "BaseException") (make-hash empty)))
+
 (define RuntimeError-def
   (CClass (list "RuntimeError" "BaseException")
           (local ([define fields (make-hash empty)])
@@ -229,7 +232,9 @@ that calls the primitive `print`.
         (bind 'KeyError KeyError-def)
         (bind 'ValueError ValueError-def)
         (bind 'TypeError TypeError-def)
+        (bind 'NameError NameError-def)
         (bind 'RuntimeError RuntimeError-def)
+
         (bind 'True true-val)
         (bind 'False false-val)
         (bind 'None none-val)

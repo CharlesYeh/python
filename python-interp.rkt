@@ -185,6 +185,18 @@
                      [ValueA (value store) (interp-env final env store)])]
       [CExcept (type body) (interp-env body env store)]
       [CGenerator (expr) (ValueA (VGenerator expr env) store)]
+      [CSet (id value)
+            (local ([define loc (lookup id env)])
+              (if (= -1 loc)
+                  (interp-throw-error 'NameError empty env store)
+                  (type-case AnswerC (interp-env value env store)
+                    [ExceptionA (value store) (ExceptionA value store)]
+                    [ReturnA (value store) (ReturnA value store)]
+                    [ValueA (value store)
+                            (begin
+                              (hash-set! store loc value)
+                              (ValueA value store))])))]
+
       [else (begin
               (display expr)
               (display "WHAAAT\n\n")
