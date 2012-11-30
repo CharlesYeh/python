@@ -20,8 +20,22 @@
 (define (new-env)
   (list (make-hash empty)))
 
-(define (extend-env [env : Env]) : Env
+(define (reference-var? [value : CVal])
+  (or (VClosure? value)
+      (VMethod? value)
+      (VGenerator? value)
+      (VList? value)
+      (VDict? value)
+      (VClass? value)
+      (VInstance? value)))
+
+(define (env-extend [env : Env]) : Env
   (cons (make-hash empty) env))
+
+(define (env-bind [env : Env] [var : symbol] [addr : Location]) : Env
+  (begin
+    (hash-set! (first env) var addr)
+    env))
 
 ;; lookup : symbol Env -> Location
 ;; finds the location of a symbol in the environment
@@ -31,11 +45,6 @@
       (type-case (optionof Location) (hash-ref (first env) name)
         [some (v) v]
         [none () (lookup name (rest env))])))
-
-(define (env-bind [env : Env] [var : symbol] [addr : Location]) : Env
-  (begin
-    (hash-set! (first env) var addr)
-    env))
 
 ;; get-truth-value : CVal -> boolean
 ;; the truth value definitions of different types when used as a boolean
@@ -161,7 +170,7 @@
               [ExceptionA (exn-val store) (ExceptionA exn-val store)]
               [ReturnA (value store) (ReturnA value store)]
               [ValueA (func-value store)
-                (type-case AnswerC (interp-app func-value arges (extend-env env) store)
+                (type-case AnswerC (interp-app func-value arges (env-extend env) store)
                   [ExceptionA (exn-val store) (ExceptionA exn-val store)]
                   [ReturnA (value store) (ValueA value store)]
                   ; functions return None by default
@@ -192,10 +201,23 @@
                   (type-case AnswerC (interp-env value env store)
                     [ExceptionA (value store) (ExceptionA value store)]
                     [ReturnA (value store) (ReturnA value store)]
-                    [ValueA (value store)
-                            (begin
-                              (hash-set! store loc value)
-                              (ValueA value store))])))]
+                    [ValueA (i-val store)
+                            (cond
+                              [(and (or (CId? value)
+                                        (CSet? value))
+                                    (reference-var? i-val))
+                               (begin
+                                 (env-bind env id (lookup
+                                                   (type-case CExp value
+                                                     [CId (x) x]
+                                                     [CSet (id value) id]
+                                                     [else (error 'interp "Invalid variable")])
+                                                   env))
+                                 (ValueA i-val store))]
+                              [else
+                               (begin
+                                 (hash-set! store loc i-val)
+                                 (ValueA i-val store))])])))]
 
       [else (begin
               (display expr)
