@@ -96,7 +96,8 @@ structure that you define in python-syntax.rkt
                  ('body body)
                  ('decorator_list decorator_list))
      (PyAssign (IdLHS (string->symbol name))
-               (PyClass (cons name (map (lambda (x) (symbol->string (PyId-x (get-structured-python x))))
+               (PyClass (cons name (map (lambda (x)
+                                          (symbol->string (PyId-x (get-structured-python x))))
                                         bases))
                         (get-structured-python body)))]
     
