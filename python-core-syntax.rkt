@@ -50,6 +50,7 @@ ParselTongue.
 
   [CPass]
   [CReturn (value : CExp)]
+  ;[CYield (value : CExp)]
   
   [CPrim1 (prim : symbol) (arg : CExp)]
   [CPrim2 (prim : symbol) (left : CExp) (right : CExp)]
@@ -87,6 +88,11 @@ ParselTongue.
   [ValueA (value : CVal) (store : Store)]
   [ReturnA (value : CVal) (store : Store)]
   [ExceptionA (exn : CVal) (store : Store)])
+  
+  ; generator yield, (yield x) gives YieldImm, which the statement "above" will
+  ; turn into a YieldA so that the return point is saved
+  ;[YieldImm (value : CVal) (env : Env) (store : Store)]
+  ;[YieldA (value : CVal) (next : CExp) (env : Env) (store : Store)])
 
 
 ; Env keeps track of id to location,

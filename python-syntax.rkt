@@ -9,9 +9,6 @@
 ;  [sliceParams (hasStart : boolean) (hasEnd : boolean) (hasStep : boolean)
 ;               (start : number) (end : number) (step : number)])
 
-(define-type FieldP
-  [fieldP (name : string) (value : PyExpr)])
-
 (define-type PyExpr
   [PySeq (es : (listof PyExpr))]
   
@@ -30,11 +27,10 @@
   [PyStr (s : string)]
   [PyList (mutable : boolean) (values : (listof PyExpr))]
   [PyDict (htable : (hashof PyExpr PyExpr))]
-  [PyObject (fields : (listof FieldP))]
   [PyGetField (obj : PyExpr) (field : PyExpr)]
 
-  ;[PyGlobal (vars : (listof symbol))]
-  ;[PyNonlocal (vars : (listof symbol))]
+  [PyGlobal (vars : (listof symbol))]
+  [PyNonlocal (vars : (listof symbol))]
   
   [PyTrue]
   [PyFalse]
@@ -64,6 +60,9 @@
   [PyNone]
   [PyPass]
   [PyReturn (value : PyExpr)]
+  ;[PyYield (value : PyExpr)]
+  
+  ; TODO:
   [PyBreak]
   [PyContinue])
 

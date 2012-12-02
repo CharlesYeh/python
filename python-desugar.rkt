@@ -103,8 +103,8 @@
     
     [PyPass () (CPass)]
     [PyReturn (value) (CReturn (desugar-helper value))]
-    #;[PyBreak () ...]
-    #;[PyContinue () ...]
+    [PyYield (value) (CYield (desugar-helper value))]
+    [PyNonlocal (var) (CPass)]
     
     [else (begin
             (display expr)
@@ -130,6 +130,11 @@
              (void))]
     [else (void)]))
 
+;; get-vars-then-desugar : ExprP -> ExprC
+;; calls helper function which sets vars to undefined, then desugars expression
+(define (get-vars-then-desugar [declared : (listof symbol)] [exprP : PyExpr]) : CExp
+  (get-vars-then-desugar-helper declared (get-vars exprP) exprP))
+
 ;; get-vars-then-desugar-helper : (listof symbol) ExprP -> ExprC
 ;; defines the vars of an expression to be undefined at the start, then desugars the expression
 (define (get-vars-then-desugar-helper [declared : (listof symbol)] [vars : (listof symbol)] [body : PyExpr]) : CExp
@@ -143,17 +148,10 @@
                   (CUndefined)
                   (get-vars-then-desugar-helper (cons vname declared) (rest vars) body))))))
 
-;; get-vars-then-desugar : ExprP -> ExprC
-;; calls helper function which sets vars to undefined, then desugars expression
-(define (get-vars-then-desugar [declared : (listof symbol)] [exprP : PyExpr]) : CExp
-  (get-vars-then-desugar-helper declared (get-vars exprP) exprP))
-
 ;; get-vars : PyExpr -> (listof symbol)
 ;; finds all Var declarations in an expression
 (define (get-vars [exprP : PyExpr]) : (listof symbol)
   (type-case PyExpr exprP
-    [PyObject (fields) empty]
-    
     ; lifted to top of FuncP, and not above it
     [PyFunc (args body) empty]
     [PyApp (func args) empty]

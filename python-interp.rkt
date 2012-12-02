@@ -61,19 +61,13 @@
     [VClosure (varargs arg defaults body env) #t]
     [else #f]))
 
-;; ObjectFields
-;; used to allow the object field interpret to return an exception
-(define-type ObjectFields
-  [ObjFields (fields : (listof FieldV)) (store : Store)]
-  [ObjException (exn-val : CVal) (store : Store)])
-
 ;; interp : CExp -> CVal
 (define (interp expr)
   ; catch exception at top level
   (type-case AnswerC (interp-env expr (new-env) (new-store))
     [ExceptionA (exn-val store) (print-error exn-val store)]
     [ReturnA (value store) (print-error value store)]
-    [ValueA (val store) val]))
+    [ValueA (value store) value]))
 
 ;; interp-env : CExp Env Store -> CVal
 ;; interprets the given expression, with environment and store
@@ -89,8 +83,7 @@
       [CList (mutable fields)
              (type-case ListFields (interp-list-exp fields env store)
                [LException (exn-val store) (ExceptionA exn-val store)]
-               [LFields (fields store) (ValueA (VList mutable fields)
-                                               store)])]
+               [LFields (fields store) (ValueA (VList mutable fields) store)])]
       [CDict (htable)
              (local ([define new-hash (make-hash empty)])
                (interp-dict-exp htable
@@ -121,6 +114,12 @@
                  [ExceptionA (exn-val store) (ExceptionA exn-val store)]
                  [ReturnA (value store) (ExceptionA value store)]
                  [ValueA (value store) (ReturnA value store)])]
+      
+      #|[CYield (value)
+              (type-case AnswerC (interp-env value env store)
+                [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                [ReturnA (value store) (ExceptionA value store)]
+                [YieldImm (value store) (|#
       
       [CError (exn)
               (type-case AnswerC (interp-env exn env store)
@@ -165,13 +164,13 @@
               [ValueA (value store) (interp-env e2 env store)])]
       
       [CApp (func arges)
-            ; catch ReturnA, and change to value
             (type-case AnswerC (interp-env func env store)
               [ExceptionA (exn-val store) (ExceptionA exn-val store)]
               [ReturnA (value store) (ReturnA value store)]
               [ValueA (func-value store)
                 (type-case AnswerC (interp-app func-value arges (env-extend env) store)
                   [ExceptionA (exn-val store) (ExceptionA exn-val store)]
+                  ; catch ReturnA, and change to value
                   [ReturnA (value store) (ValueA value store)]
                   ; functions return None by default
                   [ValueA (value store) (ValueA (VNone) store)])])]
@@ -353,7 +352,10 @@
                          (equal? (first (VInstance-bases value)) "StopIteration"))
                     (LFields empty store)
                     (LException value store))]
-    [ValueA (value store) (interp-throw-error 'StopIteration empty env store)]
+    [ValueA (value store) (LException
+                           (ExceptionA-exn-val
+                            (interp-throw-error 'StopIteration empty env store))
+                           store)]
     [ReturnA (value store)
              (type-case ListFields (interp-generator-list expr env store)
                [LFields (fields store)
@@ -362,7 +364,6 @@
                                  store)]
                [LException (exn-val store) (LException exn-val store)])]))
 |#
-
 
 ;; interp-prim1 : symbol ExprC Env Store -> Result
 ;; interprets a single argument primitive operation
@@ -849,25 +850,41 @@
 ;; interp-class-to-instance : (listof string) (hashof CVal CVal) CExp Env Store -> AnswerC
 ;; creates an instance given a class, and calls the constructor if appropriate
 (define (interp-class-to-instance [bases : (listof string)] [fields : (hashof CVal CVal)]
-                                  [args : CExp] [env : Env] [store : Store]) : CVal
-  (local ([define new-fields (make-hash empty)]
-          [define new-instance (VInstance bases new-fields)])
-    (begin
-      (map (lambda (key)
-             (local ([define value (some-v (hash-ref fields key))])
-               (type-case CVal value
-                 ; change VClosure to VMethod
-                 [VClosure (varargs args defaults body env)
-                           (hash-set! new-fields key (VMethod new-instance varargs args defaults body env))]
-                 ; leave all other fields as-is
-                 [else (hash-set! new-fields key value)])))
-           (hash-keys fields))
-      ; call constructor
-      (if (member (VStr "__init__") (hash-keys new-fields))
-          (interp-app (some-v (hash-ref new-fields (VStr "__init__"))) args env store)
-          (ExceptionA (VUndefined) store))
-      ; return instance
-      new-instance)))
+                                  [args : CExp] [args-list : (listof CVal)] [env : Env] [store : Store]) : CVal
+  (cond
+    [(equal? (first bases) "bool")
+     (cond
+       [(= 0 (length args-list)) (VFalse)]
+       [(= 1 (length args-list)) (if (get-truth-value (first args-list)) (VTrue) (VFalse))]
+       [else (VFalse)])]
+    [(equal? (first bases) "int")
+     (cond
+       [(= 0 (length args-list)) (VInt 0)]
+       [(= 1 (length args-list)) (if (numeric? (first args-list))
+                                     (VInt (floor (to-number (first args-list))))
+                                     (if (get-truth-value (first args-list)) (VInt 1) (VInt 0)))]
+       [else (VFalse)])]
+    
+    [else
+     (local ([define new-fields (make-hash empty)]
+             [define new-instance (VInstance bases new-fields)])
+       (begin
+         ; copy fields to instance
+         (map (lambda (key)
+                (local ([define value (some-v (hash-ref fields key))])
+                  (type-case CVal value
+                    ; change VClosure to VMethod
+                    [VClosure (varargs args defaults body env)
+                              (hash-set! new-fields key (VMethod new-instance varargs args defaults body env))]
+                    ; leave all other fields as-is
+                    [else (hash-set! new-fields key value)])))
+              (hash-keys fields))
+         ; call constructor
+         (if (member (VStr "__init__") (hash-keys new-fields))
+             (interp-app (some-v (hash-ref new-fields (VStr "__init__"))) args env store)
+             (ExceptionA (VUndefined) store))
+         ; return instance
+         new-instance))]))
 
 ;; interp-app : CVal CExp Env Store -> AnswerC
 ;; interprets function applications, checking for exceptions
@@ -891,8 +908,7 @@
                                     (hash-set! store newloc inst)
                                     (interp-app-helper v func (rest a) fields d
                                                        newenv env store)))]
-                       ; #### CHANGE THIS
-                       [VClass (bases fields) (ReturnA (interp-class-to-instance bases fields args env store) store)]
+                       [VClass (bases class-fields) (ReturnA (interp-class-to-instance bases class-fields args fields env store) store)]
                        [else (interp-error (string-append "Applied a non-function: " (pretty func)) store)])]
               [else (error 'interp "Application arguments not a list")])]))
 

@@ -173,18 +173,10 @@ that calls the primitive `print`.
          (CReturn (CPrim1 'len (CId 'arg1)))))
 
 (define bool-lambda
-  (CFunc #f (list 'arg1) (list (CFalse))
-    (CReturn
-      (CIf (CId 'arg1)
-           (CTrue)
-           (CFalse)))))
+  (CClass (list "bool" "int") (make-hash empty)))
 
 (define int-lambda
-  (CFunc #f (list 'arg1) empty
-    (CReturn
-      (CIf (CId 'arg1)
-           (CInt 1)
-           (CInt 0)))))
+  (CClass (list "int") (make-hash empty)))
 
 (define float-lambda
   (CFunc #f (list 'arg1) empty
