@@ -10,7 +10,11 @@ def f(x):
             return x
     return c()
 c = f(0)
+print("HI")
 ___assertEqual(c.inc(), 1)
+print("HI")
 ___assertEqual(c.inc(), 2)
+print("HI")
 ___assertEqual(c.dec(), 1)
+print("HI")
 ___assertEqual(c.dec(), 0)

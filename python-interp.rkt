@@ -935,13 +935,29 @@
        [else (interp-error "Filter type error" store)])]
     
     ['isinstance
-     (type-case CVal val1
-       [VInstance (i-bases i-classdefs i-fields)
-                  (type-case CVal val2
-                    ; check if given class is in instance's supers
-                    [VClass (bases classdefs fields) (ValueA (if (member (first bases) i-bases) (VTrue) (VFalse)) store)]
-                    [else (interp-error "isinstance on nonclass" store)])]
-       [else (ValueA (VFalse) store)])]
+     (local ([define check-lambda
+                     (lambda (i-bases bases)
+                       (ValueA (if (member (first bases) i-bases) (VTrue) (VFalse))
+                               store))]
+             [define check-error (interp-throw-error 'TypeError empty env store)])
+       (type-case CVal val1
+         [VInstance (i-bases i-classdefs i-fields)
+                    (type-case CVal val2
+                      ; check if given class is in instance's supers
+                      [VClass (bases classdefs fields) (check-lambda i-bases bases)]
+                      [else check-error])]
+  
+         ; unfortunately special case these, TODO: fix
+         [VTrue () (type-case CVal val2
+                     [VClass (bases classdefs fields) (check-lambda (list "bool" "int") bases)]
+                     [else check-error])]
+         [VFalse () (type-case CVal val2
+                      [VClass (bases classdefs fields) (check-lambda (list "bool" "int") bases)]
+                      [else check-error])]
+         [VInt (n) (type-case CVal val2
+                     [VClass (bases classdefs fields) (check-lambda (list "int") bases)]
+                     [else check-error])]
+         [else (ValueA (VFalse) store)]))]
     
     [else
      (begin
@@ -1087,7 +1103,7 @@
                   (interp-throw-error 'NameError empty env store)
                   (local ([define use-loc (new-loc)])
                     (begin
-                      (env-bind #t env id use-loc)
+                      (env-bind #f env id use-loc)
                       (hash-set! store use-loc i-val)
                       (ValueA i-val store)))))]
 #|                            ; if setting equal to another id, copy addr instead
@@ -1174,6 +1190,8 @@
                     ; leave all other fields as-is
                     [else (hash-set! new-fields key value)])))
               (hash-keys fields))
+         ; add __class__ = class def
+         (hash-set! new-fields (VStr "__class__") (some-v (hash-ref classdefs (first bases))))
          ; call constructor
          (if (member (VStr "__init__") (hash-keys new-fields))
              (interp-app (some-v (hash-ref new-fields (VStr "__init__"))) args env store)

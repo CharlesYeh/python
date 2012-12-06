@@ -95,6 +95,12 @@
     #;[PyWhile (test body) ...]
     #;[PyForElse (id seq body else-exp) ...]
     
+    [PySubscript (id params)
+                 (type-case SliceParams params
+                   [indexParams (value)
+                                (CGet (CDotLHS (desugar-helper id) (desugar-helper value)))]
+                   [sliceParams (hs he ht start end step) (error 'desugar "blah")])]
+    
     [PyIterator (id iter) (CIterator id (desugar-helper iter))]
     [PyGenerator (value-gen iters) (CGenerator (desugar-helper value-gen) (map desugar-helper iters))]
     ;[PyYield (value) (CYield (desugar-helper value))]

@@ -35,12 +35,9 @@ class G(A):
     pass
 
 ___assertEqual(D().f(), 'ABCD')
-
 ___assertEqual(D.f(D()), 'ABCD')
-
 ___assertEqual(E().f(), 'ABCD')
 ___assertEqual(E.f(E()), 'ABCD')
-
 ___assertEqual(F().f(), 'ABCD')
 ___assertEqual(F.f(F()), 'ABCD')
 

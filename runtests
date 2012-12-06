@@ -1,11 +1,7 @@
 #!/bin/bash
 
-bool/bool-isinstance.py
-dict/update
 exceptions/reraise.py
 scope/locals-function.py
-scope/nesting-plus-free-ref-to-global.py
-scope/nonlocal-method.py
 tuple/tuple-constructors.py
 types/test_string_slices.py
 
