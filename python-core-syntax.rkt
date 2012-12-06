@@ -18,7 +18,7 @@ ParselTongue.
 
   [CClass (bases : (listof string)) (body : CExp)]
   [CFunc (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
-  ; args is to be a CList so an empty list of parameters can be passed around
+  ; args is a CList so an empty list of parameters can be passed around
   [CApp (fun : CExp) (args : CExp)]
   [CReturn (value : CExp)]
   
@@ -58,23 +58,23 @@ ParselTongue.
   ;[CYield (value : CExp)]
   
   [CPass]
-
 )
   
 ; the value data type
 (define-type CVal
   [VClass (bases : (listof string)) (classdefs : (hashof string CVal)) (fields : (hashof CVal CVal))]
   [VInstance (bases : (listof string)) (classdefs : (hashof string CVal)) (fields : (hashof CVal CVal))]
+  
   [VClosure (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   ; closure from an instance
   [VMethod (inst : CVal) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
 
+  [VDict (has-values : boolean) (htable : (hashof CVal CVal))]
+  [VList (mutable : boolean) (fields : (listof CVal))]
   [VInt (n : number)]
   [VFloat (n : number)]
   [VStr (s : string)]
   
-  [VDict (has-values : boolean) (htable : (hashof CVal CVal))]
-  [VList (mutable : boolean) (fields : (listof CVal))]
   [VTrue]
   [VFalse]
   [VNone]
@@ -96,9 +96,8 @@ ParselTongue.
   ;[YieldImm (value : CVal) (env : Env) (store : Store)]
   ;[YieldA (value : CVal) (next : CExp) (env : Env) (store : Store)])
 
-
 ; Env keeps track of id to location,
-; and Store keeps track of location to value
+; Store keeps track of location to value
 (define-type-alias Location number)
 (define-type Binding
   [binding (name : symbol) (value : Location)])
@@ -106,6 +105,31 @@ ParselTongue.
 (define-type-alias Scope (hashof symbol Location))
 (define-type-alias Env (listof Scope))
 (define-type-alias Store (hashof Location CVal))
+
+;; new-store : -> Store
+(define (new-store)
+  (make-hash empty))
+
+;; new-env : -> Env
+(define (new-env)
+  (list (make-hash empty)))
+
+;; env-extend : Env -> Env
+;; adds a local scope to the environment
+(define (env-extend [env : Env]) : Env
+  (cons (make-hash empty) env))
+
+;; env-bind : boolean Env symbol Location
+;; mutates a variable reference
+(define (env-bind [curr-scope : boolean] [env : Env] [var : symbol] [addr : Location]) : Env
+  ; find env with the var
+  (local ([define fenv (first env)]
+          [define bind-now (lambda () (begin (hash-set! fenv var addr) env))])
+    (cond
+      [(= 1 (length env)) (bind-now)]
+      [curr-scope (bind-now)]
+      [(some? (hash-ref fenv var)) (bind-now)]
+      [else (env-bind #f (rest env) var addr)])))
 
 ; convenience method for interpretation errors
 (define (interp-error str store)

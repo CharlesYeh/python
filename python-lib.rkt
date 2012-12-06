@@ -12,19 +12,17 @@ that calls the primitive `print`.
 
 |#
 
+;; get-id : symbol -> CExp
+;; convenience method for getting a var value
 (define (get-id [var : symbol]) : CExp
   (CGet (CIdLHS var)))
 
-(define (hash-class [bases : (listof string)] [defs : (listof CExp)]) : (hashof string CExp)
-  (local ([define new-defs (make-hash empty)])
-    (begin
-      (map2 (lambda (base def) (hash-set! new-defs base def))
-            bases defs)
-      new-defs)))
-
+;; throw-error : symbol (listof CExp) -> CExp
+;; core expression for throwing the specified error
 (define (throw-error [error : symbol] [args : (listof CExp)]) : CExp
   (CApp (get-id error) (CList #f args)))
 
+;-------------------START LIB DEFS-------------------
 (define-type-alias Lib (CExp -> CExp))
 
 (define BaseException-def
@@ -76,10 +74,6 @@ that calls the primitive `print`.
                                      (CReturn (CGet (CDotLHS (get-id 'self) (CStr "message")))))
                               (CPass))
               )))))
-
-(define super-lambda
-  (CFunc #f (list 'classdef 'inst) empty
-    (CPrim2 'builtin-super (get-id 'classdef) (get-id 'inst))))
 
 (define print-lambda
   (CFunc #f (list 'to-print) empty
@@ -156,39 +150,6 @@ that calls the primitive `print`.
 (define range-lambda
   (CFunc #f (list 'a) empty (CPass)))
 
-#|
-(define range-lambda
-  (CFunc #f (list 'start 'stop 'step) (list (CUndefined) (CUndefined) (CInt 1))
-         (CSeq
-           ; if only one arg, set (stop = start), and (start = 0)
-           (CIf (CPrim2 'Eq (get-id 'stop) (CUndefined))
-                (CSeq (CSet (CIdLHS 'stop) (get-id 'start)) (CSet (CIdLHS 'start) (CInt 0)))
-                (CPass))
-           ; test for errors, step = 0
-           (CIf (CPrim2 'Eq (get-id 'step) (CInt 0))
-                (throw-error 'TypeError empty)
-                ; error: start, stop, or step are not ints
-                (CIf (CPrim2 'Or
-                             (CPrim2 'Or
-                                     (CPrim2 'NotEq (CPrim1 'tagof (get-id 'start)) (CStr "int"))
-                                     (CPrim2 'NotEq (CPrim1 'tagof (get-id 'start)) (CStr "int")))
-                             (CPrim2 'NotEq (CPrim1 'tagof (get-id 'step)) (CStr "int")))
-                     (throw-error 'TypeError empty)
-                     ; no errors, generate!
-                     (CGenerator
-                       (CLet 'curr-value (get-id 'start)
-                          ; end condition?
-                          (CIf (CPrim2 'Or
-                                       (CPrim2 'And (CPrim2 'Lt (get-id 'step) (CInt 0))
-                                                    (CPrim2 'LtE (get-id 'curr-value) (get-id 'stop)))
-                                       (CPrim2 'And (CPrim2 'Gt (get-id 'step) (CInt 0))
-                                                    (CPrim2 'GtE (get-id 'curr-value) (get-id 'stop))))
-                           (throw-error 'StopIteration empty)
-                           (CSeq
-                             (CSet (CIdLHS 'start) (CPrim2 'Add (get-id 'start) (get-id 'step)))
-                             (CReturn (get-id 'start)))))))))))
-|#
-
 (define callable-lambda
   (CFunc #f (list 'arg1) empty
          (CReturn (CPrim2 'Or
@@ -208,6 +169,13 @@ that calls the primitive `print`.
   (CFunc #f (list 'arg1) empty
          (CReturn (CPrim1 'len (get-id 'arg1)))))
 
+(define abs-lambda
+  (CFunc #f (list 'arg1) empty
+         (CLet 'n-arg (CApp (get-id 'float) (CList #f (list (get-id 'arg1))))
+           (CReturn (CIf (CPrim2 'Gt (CInt 0) (get-id 'n-arg))
+                         (CPrim1 'USub (get-id 'n-arg))
+                         (get-id 'n-arg))))))
+
 (define bool-lambda
   (CClass (list "bool" "int") (CPass)))
 
@@ -216,10 +184,7 @@ that calls the primitive `print`.
 
 (define float-lambda
   (CFunc #f (list 'arg1) empty
-    (CReturn
-      (CIf (get-id 'arg1)
-           (CFloat 1)
-           (CFloat 0)))))
+    (CReturn (CIf (get-id 'arg1) (CFloat 1) (CFloat 0)))))
 
 (define str-lambda
   (CFunc #f (list 'arg1) empty
@@ -236,13 +201,6 @@ that calls the primitive `print`.
 (define set-lambda
   (CFunc #f (list 'arg1) (list (CList #t empty))
     (CReturn (CPrim1 'to-set (get-id 'arg1)))))
-
-(define abs-lambda
-  (CFunc #f (list 'arg1) empty
-         (CLet 'n-arg (CApp (get-id 'float) (CList #f (list (get-id 'arg1))))
-           (CReturn (CIf (CPrim2 'Gt (CInt 0) (get-id 'n-arg))
-                         (CPrim1 'USub (get-id 'n-arg))
-                         (get-id 'n-arg))))))
 
 (define true-val
   (CTrue))
@@ -284,7 +242,6 @@ that calls the primitive `print`.
         (bind '___assertNotIn assert-not-in-lambda)
         (bind '___assertRaises assert-raises-lambda)
 
-        (bind 'super super-lambda)
         (bind 'print print-lambda)
         (bind 'filter filter-lambda)
         (bind 'isinstance isinstance-lambda)
@@ -296,7 +253,10 @@ that calls the primitive `print`.
 
         (bind 'range range-lambda)
         (bind 'len len-lambda)
+        (bind 'abs abs-lambda)
         (bind 'callable callable-lambda)
+        
+        ; TODO: convert these to classes
         (bind 'int int-lambda)
         (bind 'bool bool-lambda)
         (bind 'float float-lambda)
@@ -304,7 +264,6 @@ that calls the primitive `print`.
         (bind 'tuple tuple-lambda)
         (bind 'list list-lambda)
         (bind 'set set-lambda)
-        (bind 'abs abs-lambda)
 ))
 
 (define (python-lib expr)
@@ -318,3 +277,35 @@ that calls the primitive `print`.
     (python-lib/recur lib-functions)))
 
 
+#|
+(define range-lambda
+  (CFunc #f (list 'start 'stop 'step) (list (CUndefined) (CUndefined) (CInt 1))
+         (CSeq
+           ; if only one arg, set (stop = start), and (start = 0)
+           (CIf (CPrim2 'Eq (get-id 'stop) (CUndefined))
+                (CSeq (CSet (CIdLHS 'stop) (get-id 'start)) (CSet (CIdLHS 'start) (CInt 0)))
+                (CPass))
+           ; test for errors, step = 0
+           (CIf (CPrim2 'Eq (get-id 'step) (CInt 0))
+                (throw-error 'TypeError empty)
+                ; error: start, stop, or step are not ints
+                (CIf (CPrim2 'Or
+                             (CPrim2 'Or
+                                     (CPrim2 'NotEq (CPrim1 'tagof (get-id 'start)) (CStr "int"))
+                                     (CPrim2 'NotEq (CPrim1 'tagof (get-id 'start)) (CStr "int")))
+                             (CPrim2 'NotEq (CPrim1 'tagof (get-id 'step)) (CStr "int")))
+                     (throw-error 'TypeError empty)
+                     ; no errors, generate!
+                     (CGenerator
+                       (CLet 'curr-value (get-id 'start)
+                          ; end condition?
+                          (CIf (CPrim2 'Or
+                                       (CPrim2 'And (CPrim2 'Lt (get-id 'step) (CInt 0))
+                                                    (CPrim2 'LtE (get-id 'curr-value) (get-id 'stop)))
+                                       (CPrim2 'And (CPrim2 'Gt (get-id 'step) (CInt 0))
+                                                    (CPrim2 'GtE (get-id 'curr-value) (get-id 'stop))))
+                           (throw-error 'StopIteration empty)
+                           (CSeq
+                             (CSet (CIdLHS 'start) (CPrim2 'Add (get-id 'start) (get-id 'step)))
+                             (CReturn (get-id 'start)))))))))))
+|#

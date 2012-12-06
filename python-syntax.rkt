@@ -1,10 +1,12 @@
 #lang plai-typed
 
+; TODO: only use LHS in the core, get rid of it in the outer syntax
 (define-type LHS
   [IdLHS (id : symbol)]
   [DotLHS (obj : PyExpr) (field : PyExpr)]
   [ListLHS (li : (listof LHS))])
 
+; TODO: perhaps merge into LHS
 (define-type SliceParams
   [sliceParams (hasStart : boolean) (hasEnd : boolean) (hasStep : boolean)
                (start : number) (end : number) (step : number)]
