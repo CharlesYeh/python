@@ -1178,15 +1178,31 @@
     
     [else
      (local ([define new-fields (make-hash empty)]
-             [define new-instance (VInstance bases classdefs new-fields)])
+             [define new-instance (VInstance bases classdefs new-fields)]
+             [define class-env (env-extend env)]
+             [define super-loc (new-loc)])
        (begin
+         ; add a "class env" to bind super in
+         (hash-set! (first class-env) 'super super-loc)
+         (hash-set! store super-loc
+                    (VMethod new-instance #f (list 'self 'classdef 'inst)
+                                             (list (CNone) (CNone))
+;                             (CIf (CPrim1 'Eq (CGet (CIdLHS 'inst))
+;                                              (CNone))
+                             (CPrim2 'builtin-super (CGet (CDotLHS (CGet (CIdLHS 'self))
+                                                                   (CStr "__class__")))
+                                                    (CGet (CIdLHS 'self)))
+                             class-env))
          ; copy fields to instance
          (map (lambda (key)
-                (local ([define value (some-v (hash-ref fields key))])
+                (local ([define value (some-v (hash-ref fields key))]
+                        )
                   (type-case CVal value
                     ; change VClosure to VMethod
                     [VClosure (varargs args defaults body env)
-                              (hash-set! new-fields key (VMethod new-instance varargs args defaults body env))]
+                              (local ([define m-val (VMethod new-instance varargs args defaults
+                                                             body class-env)])
+                                (hash-set! new-fields key m-val))]
                     ; leave all other fields as-is
                     [else (hash-set! new-fields key value)])))
               (hash-keys fields))
