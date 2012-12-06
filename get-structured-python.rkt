@@ -61,7 +61,7 @@ structure that you define in python-syntax.rkt
     [(hash-table ('nodetype "GeneratorExp")
                  ('elt elt)
                  ('generators generators))
-     (PyGenerator (map get-structured-python elt)
+     (PyGenerator (get-structured-python elt)
                   ; comprehensions
                   (map get-structured-python generators))]
     [(hash-table ('nodetype "comprehension")
@@ -182,17 +182,21 @@ structure that you define in python-syntax.rkt
      (PyId (string->symbol id))]
     
     ; operators
-#|    [(hash-table ('nodetype "Subscript")
+    [(hash-table ('nodetype "Subscript")
                  ('value value)
                  ('slice slice)
                  ('ctx ctx))
-     (get-structured-python slice)]
-     (PySlice (get-structured-python value) )]
+     (PySubscript (get-structured-python value) (get-structured-python slice))]
+    [(hash-table ('nodetype "Index")
+                 ('value value))
+     (indexParams (get-structured-python value))]
+#|
     [(hash-table ('nodetype "Slice")
                  ('upper upper)
                  ('lower lower)
                  ('step step))
-     (sliceParams )]|#
+     (sliceParams )]
+|#
     [(hash-table ('nodetype "UnaryOp")
                  ('op op)
                  ('operand operand))
@@ -227,17 +231,13 @@ structure that you define in python-syntax.rkt
                  ('targets targets)
                  ('value value))
      (PyAssign
-       (local ([define lhs (get-structured-python (first targets))])
-         (cond
-           [(PyId? lhs) (IdLHS (PyId-x lhs))]
-           [(PyGetField? lhs) (DotLHS (PyGetField-obj lhs) (PyGetField-field lhs))]
-           [else (error 'get-structured-python "Assignment to invalid destination")]))
+       (gsp-lhs (get-structured-python (first targets)))
        (get-structured-python value))]
     
-    #;[(hash-table ('nodetype "Nonlocal")
+    [(hash-table ('nodetype "Nonlocal")
                  ('names names))
      (PyNonlocal (map string->symbol names))]
-    #;[(hash-table ('nodetype "Global")
+    [(hash-table ('nodetype "Global")
                  ('names names))
      (PyGlobal (map string->symbol names))]
 
@@ -248,14 +248,6 @@ structure that you define in python-syntax.rkt
         [(member (first (string->list ".")) (string->list (number->string n)))
          (PyFloat n)]
         [else (PyInt n)])]
-#|
-        [(hash-table ('nodetype "Complex")
-                    ('value cn))
-        (PyComplex (string->number (cond
-                                     [(equal? (string-replace cn "+" "*") cn)
-                                      (string-replace cn "j" "i")]
-                                     [else (string-append "0+" (string-replace cn "j" "i"))])))]
-|#
     [(hash-table ('nodetype "Str")
                  ('s s))
      (PyStr s)]
@@ -276,7 +268,22 @@ structure that you define in python-syntax.rkt
          (map (lambda (k v) (hash-set! htable (get-structured-python k)
                                               (get-structured-python v)))
               keys values)
-         (PyDict htable)))]
+         (PyDict #t htable)))]
+    [(hash-table ('nodetype "Set")
+                 ('elts elts))
+     (local ([define htable (make-hash)])
+       (begin
+         (map (lambda (k) (hash-set! htable (get-structured-python k)
+                                            (PyNone)))
+              elts)
+         (PyDict #f htable)))]
+
+    [(hash-table ('nodetype "Delete")
+                 ('targets targets))
+     (PyDelete (ListLHS (map (lambda (t)
+                             (gsp-lhs (get-structured-python t)))
+                        targets)))]
+    
 
     [_ (begin
          (display pyjson)
@@ -285,5 +292,24 @@ structure that you define in python-syntax.rkt
 
 )
 
+;; gsp-lhs
+
+(define (gsp-lhs lhs)
+   (cond
+     [(PySubscript? lhs)
+      (local ([define obj-val (PySubscript-value lhs)]
+              [define sub (PySubscript-params lhs)]
+              [define sub-val (cond
+                                [(indexParams? sub) (indexParams-value sub)]
+                                [else (error 'gsp "can't be converted to PyExpr")]
+                              )])
+        (cond
+          [(PyId? obj-val) (DotLHS obj-val sub-val)]
+          [else (error 'gsp "can't be converted to LHS")]))]
+
+     [(PyId? lhs) (IdLHS (PyId-x lhs))]
+     [(PyGetField? lhs) (DotLHS (PyGetField-obj lhs) (PyGetField-field lhs))]
+     [(PyList? lhs) (ListLHS (map gsp-lhs (PyList-values lhs)))]
+     [else (error 'get-structured-python "Assignment to invalid destination")]))
 
 

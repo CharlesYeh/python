@@ -12,197 +12,237 @@ that calls the primitive `print`.
 
 |#
 
+(define (get-id [var : symbol]) : CExp
+  (CGet (CIdLHS var)))
+
+(define (hash-class [bases : (listof string)] [defs : (listof CExp)]) : (hashof string CExp)
+  (local ([define new-defs (make-hash empty)])
+    (begin
+      (map2 (lambda (base def) (hash-set! new-defs base def))
+            bases defs)
+      new-defs)))
+
 (define (throw-error [error : symbol] [args : (listof CExp)]) : CExp
-  (CApp (CId error) (CList #f args)))
+  (CApp (get-id error) (CList #f args)))
 
 (define-type-alias Lib (CExp -> CExp))
 
+(define BaseException-def
+  (CClass (list "BaseException") (CPass)))
+
+(define Exception-def
+  (CClass (list "Exception" "BaseException") (CPass)))
+
 (define StopIteration-def
-  (CClass (list "StopIteration" "BaseException") (make-hash empty)))
+  (CClass (list "StopIteration" "BaseException") (CPass)))
 
 (define ZeroDivisionError-def
-  (CClass (list "ZeroDivisionError" "BaseException") (make-hash empty)))
+  (CClass (list "ZeroDivisionError" "BaseException") (CPass)))
 
 (define IndexError-def
-  (CClass (list "IndexError" "BaseException") (make-hash empty)))
+  (CClass (list "IndexError" "BaseException") (CPass)))
 
 (define KeyError-def
-  (CClass (list "KeyError" "BaseException") (make-hash empty)))
+  (CClass (list "KeyError" "BaseException") (CPass)))
 
 (define ValueError-def
-  (CClass (list "ValueError" "BaseException") (make-hash empty)))
+  (CClass (list "ValueError" "BaseException") (CPass)))
 
 (define TypeError-def
-  (CClass (list "TypeError" "BaseException") (make-hash empty)))
+  (CClass (list "TypeError" "BaseException") (CPass)))
 
 (define NameError-def
-  (CClass (list "NameError" "BaseException") (make-hash empty)))
+  (CClass (list "NameError" "BaseException") (CPass)))
+
+(define UnboundLocalError-def
+  (CClass (list "UnboundLocalError" "BaseException") (CPass)))
+
+(define AttributeError-def
+  (CClass (list "AttributeError" "BaseException") (CPass)))
 
 (define RuntimeError-def
-  (CClass (list "RuntimeError" "BaseException")
+  (CClass (list "RuntimeError" "BaseException") 
           (local ([define fields (make-hash empty)])
-            (begin
-              (hash-set! fields (CStr "message") (CStr ""))
-              (hash-set! fields (CStr "__init__") (CFunc #f
-                                                         (list 'self 'message)
-                                                         (list (CStr "No active exception"))
-                                                         (CSetField (CId 'self) (CStr "message") (CId 'message))))
-              (hash-set! fields (CStr "__str__") (CFunc #f
-                                                        (list 'self)
-                                                        empty
-                                                        (CReturn (CGetField (CId 'self) (CStr "message")))))
-              fields
-              ))))
+            (CLet 'message (CStr "")
+                  (CLet '__init__
+                        (CFunc #f
+                               (list 'self 'message)
+                               (list (CStr "No active exception"))
+                               (CSet (CDotLHS (get-id 'self) (CStr "message")) (get-id 'message)))
+                        (CLet '__str__
+                              (CFunc #f
+                                     (list 'self)
+                                     empty
+                                     (CReturn (CGet (CDotLHS (get-id 'self) (CStr "message")))))
+                              (CPass))
+              )))))
+
+(define super-lambda
+  (CFunc #f (list 'classdef 'inst) empty
+    (CPrim2 'builtin-super (get-id 'classdef) (get-id 'inst))))
 
 (define print-lambda
   (CFunc #f (list 'to-print) empty
-    (CPrim1 'to-print (CId 'to-print))))
+    (CPrim1 'to-print (get-id 'to-print))))
 
 (define all-lambda
   (CFunc #f (list 'l) empty
-    (CPrim1 'builtin-all (CId 'l))))
+    (CReturn (CPrim1 'builtin-all (get-id 'l)))))
 
 (define any-lambda
   (CFunc #f (list 'l) empty
-    (CPrim1 'builtin-any (CId 'l))))
+    (CReturn (CPrim1 'builtin-any (get-id 'l)))))
+
+(define locals-lambda
+  (CFunc #f empty empty
+    (CPrim1 'builtin-locals (CNone))))
 
 (define assert-true-lambda
   (CFunc #f (list 'check-true) empty
-    (CIf (CId 'check-true) (CTrue) (CError (CStr "Assert failed")))))
+    (CIf (get-id 'check-true) (CTrue) (CError (CStr "Assert failed")))))
 
 (define assert-false-lambda
   (CFunc #f (list 'check-false) empty
-    (CIf (CId 'check-false) (CError (CStr "Assert failed"))
-                           (CFalse))))
+    (CIf (get-id 'check-false) (CError (CStr "Assert failed"))
+                               (CFalse))))
 
 (define assert-equal-lambda
   (CFunc #f (list 'arg1 'arg2) empty
-    (CIf (CPrim2 'Eq (CId 'arg1) (CId 'arg2))
+    (CIf (CPrim2 'Eq (get-id 'arg1) (get-id 'arg2))
          (CTrue)
          (CError (CStr "Assert failed")))))
 
 (define assert-is-lambda
   (CFunc #f (list 'arg1 'arg2) empty
-         (CIf (CPrim2 'Is (CId 'arg1) (CId 'arg2))
+         (CIf (CPrim2 'Is (get-id 'arg1) (get-id 'arg2))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-is-not-lambda
   (CFunc #f (list 'arg1 'arg2) empty
-         (CIf (CPrim2 'IsNot (CId 'arg1) (CId 'arg2))
+         (CIf (CPrim2 'IsNot (get-id 'arg1) (get-id 'arg2))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-in-lambda
   (CFunc #f (list 'arg1 'arg2) empty
-         (CIf (CPrim2 'In (CId 'arg1) (CId 'arg2))
+         (CIf (CPrim2 'In (get-id 'arg1) (get-id 'arg2))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-not-in-lambda
   (CFunc #f (list 'arg1 'arg2) empty
-         (CIf (CPrim2 'NotIn (CId 'arg1) (CId 'arg2))
+         (CIf (CPrim1 'Not (CPrim2 'In (get-id 'arg1) (get-id 'arg2)))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-raises-lambda
   (CFunc #t (list 'arg1 'arg2 'arg3) (list (CUndefined) (CNone))
          (CTry
-           (CApp (CId 'arg2) (CId 'arg3))
+           (CApp (get-id 'arg2) (get-id 'arg3))
            (CError (CStr "Assert failed"))
-           (list (CExcept (CId 'arg1) (CTrue))))))
+           (list (CExcept (get-id 'arg1) (CTrue))))))
 
 (define filter-lambda
   (CFunc #f (list 'func 'iter) empty
          (CReturn (CPrim2 'builtin-filter
-                          (CId 'func)
-                          (CPrim1 'to-list (CId 'iter))))))
+                          (get-id 'func)
+                          (CPrim1 'to-list (get-id 'iter))))))
 
 (define isinstance-lambda
   (CFunc #f (list 'a 'b) empty
-         (CReturn (CPrim2 'isinstance (CId 'a) (CId 'b)))))
+         (CReturn (CPrim2 'isinstance (get-id 'a) (get-id 'b)))))
 
+(define range-lambda
+  (CFunc #f (list 'a) empty (CPass)))
+
+#|
 (define range-lambda
   (CFunc #f (list 'start 'stop 'step) (list (CUndefined) (CUndefined) (CInt 1))
          (CSeq
            ; if only one arg, set (stop = start), and (start = 0)
-           (CIf (CPrim2 'Eq (CId 'stop) (CUndefined))
-                (CSeq (CSet 'stop (CId 'start)) (CSet 'start (CInt 0)))
+           (CIf (CPrim2 'Eq (get-id 'stop) (CUndefined))
+                (CSeq (CSet (CIdLHS 'stop) (get-id 'start)) (CSet (CIdLHS 'start) (CInt 0)))
                 (CPass))
            ; test for errors, step = 0
-           (CIf (CPrim2 'Eq (CId 'step) (CInt 0))
+           (CIf (CPrim2 'Eq (get-id 'step) (CInt 0))
                 (throw-error 'TypeError empty)
                 ; error: start, stop, or step are not ints
                 (CIf (CPrim2 'Or
                              (CPrim2 'Or
-                                     (CPrim2 'NotEq (CPrim1 'tagof (CId 'start)) (CStr "int"))
-                                     (CPrim2 'NotEq (CPrim1 'tagof (CId 'start)) (CStr "int")))
-                             (CPrim2 'NotEq (CPrim1 'tagof (CId 'step)) (CStr "int")))
+                                     (CPrim2 'NotEq (CPrim1 'tagof (get-id 'start)) (CStr "int"))
+                                     (CPrim2 'NotEq (CPrim1 'tagof (get-id 'start)) (CStr "int")))
+                             (CPrim2 'NotEq (CPrim1 'tagof (get-id 'step)) (CStr "int")))
                      (throw-error 'TypeError empty)
                      ; no errors, generate!
                      (CGenerator
-                       (CLet 'curr-value (CId 'start)
+                       (CLet 'curr-value (get-id 'start)
                           ; end condition?
                           (CIf (CPrim2 'Or
-                                       (CPrim2 'And (CPrim2 'Lt (CId 'step) (CInt 0))
-                                                    (CPrim2 'LtE (CId 'curr-value) (CId 'stop)))
-                                       (CPrim2 'And (CPrim2 'Gt (CId 'step) (CInt 0))
-                                                    (CPrim2 'GtE (CId 'curr-value) (CId 'stop))))
+                                       (CPrim2 'And (CPrim2 'Lt (get-id 'step) (CInt 0))
+                                                    (CPrim2 'LtE (get-id 'curr-value) (get-id 'stop)))
+                                       (CPrim2 'And (CPrim2 'Gt (get-id 'step) (CInt 0))
+                                                    (CPrim2 'GtE (get-id 'curr-value) (get-id 'stop))))
                            (throw-error 'StopIteration empty)
                            (CSeq
-                             (CSet 'start (CPrim2 'Add (CId 'start) (CId 'step)))
-                             (CReturn (CId 'start)))))))))))
+                             (CSet (CIdLHS 'start) (CPrim2 'Add (get-id 'start) (get-id 'step)))
+                             (CReturn (get-id 'start)))))))))))
+|#
 
 (define callable-lambda
   (CFunc #f (list 'arg1) empty
          (CReturn (CPrim2 'Or
-                          (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "function"))
+                          (CPrim2 'Eq (CPrim1 'tagof (get-id 'arg1)) (CStr "function"))
                           ; constructors are callable
-                          (CPrim2 'Eq (CPrim1 'tagof (CId 'arg1)) (CStr "class"))))))
+                          (CPrim2 'Eq (CPrim1 'tagof (get-id 'arg1)) (CStr "class"))))))
 
 (define min-lambda
   (CFunc #f (list 'arg1) empty
-         (CReturn (CPrim1 'min (CId 'arg1)))))
+         (CReturn (CPrim1 'min (get-id 'arg1)))))
 
 (define max-lambda
   (CFunc #f (list 'arg1) empty
-         (CReturn (CPrim1 'max (CId 'arg1)))))
+         (CReturn (CPrim1 'max (get-id 'arg1)))))
 
 (define len-lambda
   (CFunc #f (list 'arg1) empty
-         (CReturn (CPrim1 'len (CId 'arg1)))))
+         (CReturn (CPrim1 'len (get-id 'arg1)))))
 
 (define bool-lambda
-  (CClass (list "bool" "int") (make-hash empty)))
+  (CClass (list "bool" "int") (CPass)))
 
 (define int-lambda
-  (CClass (list "int") (make-hash empty)))
+  (CClass (list "int") (CPass)))
 
 (define float-lambda
   (CFunc #f (list 'arg1) empty
     (CReturn
-      (CIf (CId 'arg1)
+      (CIf (get-id 'arg1)
            (CFloat 1)
            (CFloat 0)))))
 
 (define str-lambda
   (CFunc #f (list 'arg1) empty
-    (CReturn (CPrim1 'to-string (CId 'arg1)))))
+    (CReturn (CPrim1 'to-string (get-id 'arg1)))))
 
 (define tuple-lambda
   (CFunc #f (list 'arg1) (list (CList #f empty))
-    (CReturn (CPrim1 'to-tuple (CId 'arg1)))))
+    (CReturn (CPrim1 'to-tuple (get-id 'arg1)))))
 
 (define list-lambda
   (CFunc #f (list 'arg1) (list (CList #t empty))
-    (CReturn (CPrim1 'to-list (CId 'arg1)))))
+    (CReturn (CPrim1 'to-list (get-id 'arg1)))))
+
+(define set-lambda
+  (CFunc #f (list 'arg1) (list (CList #t empty))
+    (CReturn (CPrim1 'to-set (get-id 'arg1)))))
 
 (define abs-lambda
   (CFunc #f (list 'arg1) empty
-         (CLet 'n-arg (CApp (CId 'float) (CList #f (list (CId 'arg1))))
-           (CReturn (CIf (CPrim2 'Gt (CInt 0) (CId 'n-arg))
-                         (CPrim1 'USub (CId 'n-arg))
-                         (CId 'n-arg))))))
+         (CLet 'n-arg (CApp (get-id 'float) (CList #f (list (get-id 'arg1))))
+           (CReturn (CIf (CPrim2 'Gt (CInt 0) (get-id 'n-arg))
+                         (CPrim1 'USub (get-id 'n-arg))
+                         (get-id 'n-arg))))))
 
 (define true-val
   (CTrue))
@@ -218,6 +258,8 @@ that calls the primitive `print`.
 
 (define lib-functions
   (list
+        (bind 'BaseException BaseException-def)
+        (bind 'Exception Exception-def)
         (bind 'StopIteration StopIteration-def)
         (bind 'ZeroDivisionError ZeroDivisionError-def)
         (bind 'IndexError IndexError-def)
@@ -225,6 +267,8 @@ that calls the primitive `print`.
         (bind 'ValueError ValueError-def)
         (bind 'TypeError TypeError-def)
         (bind 'NameError NameError-def)
+        (bind 'UnboundLocalError UnboundLocalError-def)
+        (bind 'AttributeError AttributeError-def)
         (bind 'RuntimeError RuntimeError-def)
 
         (bind 'True true-val)
@@ -240,23 +284,26 @@ that calls the primitive `print`.
         (bind '___assertNotIn assert-not-in-lambda)
         (bind '___assertRaises assert-raises-lambda)
 
+        (bind 'super super-lambda)
         (bind 'print print-lambda)
         (bind 'filter filter-lambda)
         (bind 'isinstance isinstance-lambda)
         (bind 'all all-lambda)
         (bind 'any any-lambda)
-
+        (bind 'locals locals-lambda)
         (bind 'min min-lambda)
         (bind 'max max-lambda)
+
         (bind 'range range-lambda)
         (bind 'len len-lambda)
         (bind 'callable callable-lambda)
-        (bind 'bool bool-lambda)
         (bind 'int int-lambda)
+        (bind 'bool bool-lambda)
         (bind 'float float-lambda)
         (bind 'str str-lambda)
         (bind 'tuple tuple-lambda)
         (bind 'list list-lambda)
+        (bind 'set set-lambda)
         (bind 'abs abs-lambda)
 ))
 

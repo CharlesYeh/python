@@ -6,7 +6,11 @@
 ;; desugar : PyExpr -> CExp
 ;; desugars the given visible language expression to the core language
 (define (desugar expr)
-  (get-vars-then-desugar empty expr))
+  (local ([define global-vars (get-vars #t #f #t expr)]
+          ; get local, and nonlocal in inner scopes
+          [define global-local-vars (get-vars #f #f #t expr)]
+          [define global-all-vars (append global-vars global-local-vars)])
+    (get-vars-declare-then-desugar empty global-all-vars expr)))
 
 ;; desugar-helper : PyExpr -> CExp
 ;; same as desugar, but used for non-top level expressions
@@ -23,42 +27,38 @@
                            (desugar-helper (first es))
                            (rest es)))]
     
-    [PyId (x) (CId x)]
-    
-    [PyClass (bases body)
-             (local ([define fields (make-hash empty)])
-               (begin
-                 (desugar-class body fields)
-                 (CClass bases fields)))]
+    ; objects/functions
+    [PyClass (bases body) (CClass bases (get-vars-then-desugar empty body))]
     [PyFunc (args body) (CFunc #f args empty (get-vars-then-desugar args body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
                             (CList #f (map desugar-helper args)))]
+    [PyReturn (value) (CReturn (desugar-helper value))]
     
-    ; control
-    [PyIf (cond then els) (CIf (desugar-helper cond)
-                                (desugar-helper then)
-                                (desugar-helper els))]
-    
-    
-    [PyInt (n) (CInt n)]
-    [PyFloat (n) (CFloat n)]
-    [PyStr (s) (CStr s)]
-    [PyList (mutable fields) (CList mutable (map desugar-helper fields))]
-    [PyDict (htable) (local ([define new-hash (make-hash empty)])
+    ; data types
+    [PyDict (has-values htable) (local ([define new-hash (make-hash empty)])
                        (begin
                          (map (lambda (key)
                                 (hash-set! new-hash
                                            (desugar-helper key)
                                            (desugar-helper (some-v (hash-ref htable key)))))
                               (hash-keys htable))
-                         (CDict new-hash)))]
-    [PyGetField (obj field) (CGetField (desugar-helper obj) (desugar-helper field))]
-    
+                         (CDict has-values new-hash)))]
+    [PyList (mutable fields) (CList mutable (map desugar-helper fields))]
+    [PyInt (n) (CInt n)]
+    [PyFloat (n) (CFloat n)]
+    [PyStr (s) (CStr s)]
     [PyTrue () (CTrue)]
     [PyFalse () (CFalse)]
     [PyNone () (CNone)]
     
-    [PyCompare (ops left args) (desugar-compare ops left args)]
+    ; var manipulation
+    [PyId (x) (CGet (CIdLHS x))]
+    [PyGetField (obj field) (CGet (CDotLHS (desugar-helper obj) (desugar-helper field)))]
+    [PyDelete (lhs) (CDel (desugar-lhs lhs))]
+    [PyAssign (lhs value) (CSet (desugar-lhs lhs) (desugar-helper value))]
+    [PyPrimAssign (op lhs value)
+                  (local ([define d-lhs (desugar-lhs lhs)])
+                    (CSet d-lhs (CPrim2 op (CGet d-lhs) (desugar-helper value))))]
     [PyPrim (op args)
             (if (= 1 (length args))
                 (CPrim1 op (desugar-helper (first args)))
@@ -67,6 +67,16 @@
                        (desugar-helper (first args))
                        (rest args)))]
     
+    ; scope
+    [PyNonlocal (vars) (CPass)]
+    [PyGlobal (vars) (CPass)]
+    
+    ; control
+    [PyIf (cond then els) (CIf (desugar-helper cond)
+                                (desugar-helper then)
+                                (desugar-helper els))]
+    [PyCompare (ops left args) (desugar-compare ops left args)]
+
     ; error control
     [PyTry (body orelse excepts)
            (CTry (desugar-helper body)
@@ -75,45 +85,41 @@
     [PyTryFinally (body final)
                   (CTryFinally (desugar-helper body)
                                (desugar-helper final))]
-    [PyRaise (exc cause) (CError (desugar-helper exc))]
-    [PyReraise () (CError (CApp (CId 'RuntimeError) (CList #f empty)))]
     [PyExcept (type body) (CExcept (desugar-helper type) (desugar-helper body))]
     [PyNamedExcept (name type body) (CNamedExcept name (desugar-helper type) (desugar-helper body))]
+
+    [PyRaise (exc cause) (CError (desugar-helper exc))]
+    [PyReraise () (CError (CApp (CGet (CIdLHS 'RuntimeError)) (CList #f empty)))]
     
     ; loops
     #;[PyWhile (test body) ...]
     #;[PyForElse (id seq body else-exp) ...]
     
-    [PyAssign (lhs value)
-              (type-case LHS lhs
-                [IdLHS (id) (CSet id (desugar value))]
-                [DotLHS (obj field) (CSetField (desugar obj) (desugar field) (desugar value))]
-                [else (error 'desugar "Handle other assignments")])]
-    ;[BracketLHS (obj field) (SetFieldC (desugar obj) (desugar field) (desugar value))]
-    ;[DotLHS (obj field) (SetFieldC (desugar obj) (StrC (symbol->string field)) (desugar value))])]
-    
-    [PyPrimAssign (op lhs value)
-                  (type-case LHS lhs
-                    [IdLHS (id) (CSet id (CPrim2 op (CId id) (desugar value)))]
-                    [DotLHS (obj field) (CSetField (desugar obj) (desugar field)
-                                                   (CPrim2 op
-                                                           (CGetField (desugar obj) (desugar field))
-                                                           (desugar value)))]
-                    [else (error 'desugar "Handle other assignments")])]
+    [PyIterator (id iter) (CIterator id (desugar-helper iter))]
+    [PyGenerator (value-gen iters) (CGenerator (desugar-helper value-gen) (map desugar-helper iters))]
+    ;[PyYield (value) (CYield (desugar-helper value))]
     
     [PyPass () (CPass)]
-    [PyReturn (value) (CReturn (desugar-helper value))]
-    [PyYield (value) (CYield (desugar-helper value))]
-    [PyNonlocal (var) (CPass)]
-    
+
     [else (begin
             (display expr)
             (error 'desugar "Haven't handled a case yet"))]))
 )
 
-(define (desugar-class (body : PyExpr) (fields : (hashof CExp CExp))) : void
-  (type-case PyExpr body
-    [PySeq (es)
+(define (desugar-lhs [lhs : LHS]) : CLHS
+  (type-case LHS lhs
+    [IdLHS (id) (CIdLHS id)]
+    [DotLHS (obj field) (CDotLHS (desugar-helper obj)
+                                 (desugar-helper field))]
+    [ListLHS (li) (CListLHS (map desugar-lhs li))]))
+
+#|
+(define (desugar-class [bases : (listof string)] [body : PyExpr]) : CExp
+   (local ([define fields (make-hash empty)])
+     (begin
+       ; add field vars
+       (type-case PyExpr body
+         [PySeq (es)
            (begin
              ; place all definitions into fields
              (map (lambda (exp)
@@ -127,83 +133,107 @@
                                   [else (void)])]
                       [else (void)]))
                   es)
-             (void))]
-    [else (void)]))
+             (CSeq
+              ; non-field expressions go here
+              (foldr (lambda (expr result)
+                       (type-case PyExpr expr
+                         [PyAssign (lhs value) result]
+                         [else (CSeq (desugar-helper expr)
+                                     result)]))
+                     (CPass)
+                     es)
+              (CClass bases fields)))]
+         ; class body should be a pyseq
+         [else (error 'desugar "Class body isn't seq")]))))
+|#
 
 ;; get-vars-then-desugar : ExprP -> ExprC
 ;; calls helper function which sets vars to undefined, then desugars expression
 (define (get-vars-then-desugar [declared : (listof symbol)] [exprP : PyExpr]) : CExp
-  (get-vars-then-desugar-helper declared (get-vars exprP) exprP))
+  ; don't re-declare global and non-local vars
+  (local ([define declared-vars (append declared (get-vars #t #t #f exprP))])
+    (get-vars-declare-then-desugar declared-vars (get-vars #f #f #t exprP) exprP)))
 
-;; get-vars-then-desugar-helper : (listof symbol) ExprP -> ExprC
+;; get-vars-declare-then-desugar : (listof symbol) ExprP -> ExprC
 ;; defines the vars of an expression to be undefined at the start, then desugars the expression
-(define (get-vars-then-desugar-helper [declared : (listof symbol)] [vars : (listof symbol)] [body : PyExpr]) : CExp
-  (if (empty? vars)
-      (desugar-helper body)
-      ; continue defining vars
-      (local ([define vname (first vars)])
-        (if (member vname declared)
-            (get-vars-then-desugar-helper declared (rest vars) body)
-            (CLet vname
-                  (CUndefined)
-                  (get-vars-then-desugar-helper (cons vname declared) (rest vars) body))))))
+(define (get-vars-declare-then-desugar [declared : (listof symbol)] [vars : (listof symbol)] [body : PyExpr]) : CExp
+(begin
+  (foldr (lambda (var expr)
+           ; add var declaration if not yet declared
+           (if (member var declared)
+               expr
+               (CLet var (CUndefined) expr)))
+         (desugar-helper body)
+         vars))
+)
 
 ;; get-vars : PyExpr -> (listof symbol)
 ;; finds all Var declarations in an expression
-(define (get-vars [exprP : PyExpr]) : (listof symbol)
+;; global = return PyGlobal vars only
+;; nonlocal = return Nonlocal vars only
+;; extend = extend into further scopes. If global, then extends all the way. If nonlocal, then extends one
+(define (get-vars [global : boolean] [nonlocal : boolean] [extend : boolean] [exprP : PyExpr]) : (listof symbol)
+(local ([define gv-lambda (lambda (expr) (get-vars global nonlocal extend expr))])
   (type-case PyExpr exprP
-    ; lifted to top of FuncP, and not above it
-    [PyFunc (args body) empty]
+    ; lifted to top of FuncP, and not above it, but look for nonlocals if currently looking for locals
+    ; extend = global, if looking for nonlocals, then global = false so it only goes to the next
+    [PyClass (supers body) (if extend (get-vars global (not global) global body) empty)]
+    [PyFunc (args body) (if extend (get-vars global (not global) global body) empty)]
+
     [PyApp (func args) empty]
-    ; don't lift past Defvar and Deffun
     [PyId (name) empty]
     
-    [PyWhile (test body) (get-vars body)]
+    [PyWhile (test body) (gv-lambda body)]
     
     [PyForElse (id seq body orelse) (cons id
-                                    (append (get-vars seq)
-                                            (get-vars body)))]
+                                    (append (gv-lambda seq)
+                                            (gv-lambda body)))]
     
-    [PyAssign (lhs value)
-             (type-case LHS lhs
-               [IdLHS (id) (cons id (get-vars value))]
-               [else (get-vars value)])]
+    [PyPrim (op args) empty]
+    [PyPrimAssign (op lhs value) (gv-lambda value)]
+
+    ; IF NONLOCAL, add var from Nonlocal
+    [PyNonlocal (vars) (if nonlocal vars empty)]
+    [PyGlobal (vars) (if global vars empty)]
+    
+    ; IF LOCAL, then add var from PyAssign
+    [PyAssign (lhs value) (if (and (not global) (not nonlocal))
+                              (append (get-vars-lhs lhs) (gv-lambda value))
+                              (gv-lambda value))]
     
     [PySeq (es) (cond
                  [(= 0 (length es)) empty]
-                 [(= 1 (length es)) (get-vars (first es))]
-                 [else (get-vars-seq es)])]
-    [PyIf (cond then els) (append (get-vars cond)
-                                 (append (get-vars then)
-                                         (get-vars els)))]
+                 [else (foldl (lambda (expr seq) (append (gv-lambda expr) seq))
+                              empty
+                              es)])]
+    [PyIf (cond then els) (append (gv-lambda cond)
+                                 (append (gv-lambda then)
+                                         (gv-lambda els)))]
     
     [PyTry (body els excepts)
-           (append (append (get-vars body) (get-vars els))
-                   (foldl (lambda (exc vars) (append (get-vars exc) vars))
+           (append (append (gv-lambda body) (gv-lambda els))
+                   (foldl (lambda (exc vars) (append (gv-lambda exc) vars))
                           empty
                           excepts))]
-    [PyExcept (type body) (get-vars body)]
-    [PyNamedExcept (name type body) (get-vars body)]
-    [PyTryFinally (body final) (append (get-vars body) (get-vars final))]
+    [PyExcept (type body) (gv-lambda body)]
+    [PyNamedExcept (name type body) (gv-lambda body)]
+    [PyTryFinally (body final) (append (gv-lambda body) (gv-lambda final))]
     
     [PyInt (n) empty]
     [PyStr (s) empty]
     [PyTrue () empty]
     [PyFalse () empty]
     
-    [PyPrim (op args) empty]
-    [PyPrimAssign (op lhs value) (get-vars value)]
-    
     [else empty]))
+)
 
-;; get-vars-seq : (listof ExprP) -> (listof symbol)
-;; gets the variable declarations within a sequence
-(define (get-vars-seq [es : (listof PyExpr)]) : (listof symbol)
-  (if (empty? es)
-      empty
-      (append (get-vars (first es))
-              (get-vars-seq (rest es)))))
-
+(define (get-vars-lhs [lhs : LHS]) : (listof symbol)
+  (type-case LHS lhs
+    [IdLHS (id) (list id)]
+    [ListLHS (li) (foldl (lambda (lhs vars)
+                           (append (get-vars-lhs lhs) vars))
+                         empty li)]
+    [else empty]))
 
 ;; desugar-compare : (listof symbol) PyExpr (listof PyExpr) -> CExp
 ;; desugars a string of comparisons

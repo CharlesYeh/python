@@ -9,21 +9,50 @@ We hope to change these to class definitions
 
 (require "python-core-syntax.rkt")
 
+(define (core-id [x : symbol]) : CExp
+  (CGet (CIdLHS x)))
+
 ;; method for dict.get(key)
 (define (dict-get-lambda (self : CVal) (env : Env)) : CVal
   (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CNone))
-    (CLet 'temp-val (CPrim2 'builtin-dict-get (CId 'self) (CId 'key))
+    (CLet 'temp-val (CPrim2 'builtin-dict-get (core-id 'self) (core-id 'key))
       ; return default if None
-      (CIf (CPrim2 'Eq (CId 'temp-val) (CNone))
-           (CReturn (CId 'default))
-           (CReturn (CId 'temp-val))))
+      (CIf (CPrim2 'Eq (core-id 'temp-val) (CNone))
+           (CReturn (core-id 'default))
+           (CReturn (core-id 'temp-val))))
     env))
 
 ;; method for dict.clear()
-(define (dict-clear-lambda (self : CVal) (env : Env)) : CVal
-  (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CNone))
-    (CPrim1 'builtin-dict-clear (CId 'self))
+(define (dict-clear-lambda [self : CVal] [env : Env]) : CVal
+  (VMethod self #f (list 'self) empty
+    (CPrim1 'builtin-dict-clear (core-id 'self))
     env))
+
+(define (dict-update-lambda [self : CVal] [env : Env]) : CVal
+  (VMethod self #f (list 'self 'new-vals) (list (CDict #t (make-hash empty)))
+    (CPrim2 'builtin-dict-update (core-id 'self) (core-id 'new-vals))
+    env))
+
+(define (dict-keys-lambda [self : CVal] [env : Env]) : CVal
+  (VMethod self #f (list 'self) empty
+    (CReturn (CPrim1 'builtin-dict-keys (core-id 'self)))
+    env))
+
+(define (dict-values-lambda [self : CVal] [env : Env]) : CVal
+  (VMethod self #f (list 'self) empty
+    (CReturn (CPrim1 'builtin-dict-values (core-id 'self)))
+    env))
+
+(define (dict-items-lambda [self : CVal] [env : Env]) : CVal
+  (VMethod self #f (list 'self) empty
+    (CReturn (CPrim1 'builtin-dict-items (core-id 'self)))
+    env))
+
+#|
+(define (dict-getitem-lambda [self : CVal] [env : Env]) : CVal
+  (VMethod self #f (list 'self) empty
+    (CPrim1 '
+|#
 
 ; for string comparison
 (define alphabet

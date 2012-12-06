@@ -7,32 +7,43 @@ ParselTongue.
 
 |#
 
-(define-type FieldC
-  [fieldC (name : string) (value : CExp)])
+(define-type CLHS
+  [CIdLHS (id : symbol)]
+  [CDotLHS (obj : CExp) (field : CExp)]
+  [CListLHS (li : (listof CLHS))])
 
 ; the core expression type variants
 (define-type CExp
+  [CSeq (e1 : CExp) (e2 : CExp)]
+
+  [CClass (bases : (listof string)) (body : CExp)]
+  [CFunc (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
+  ; args is to be a CList so an empty list of parameters can be passed around
+  [CApp (fun : CExp) (args : CExp)]
+  [CReturn (value : CExp)]
+  
+  [CDict (has-values : boolean) (htable : (hashof CExp CExp))]
+  [CList (mutable : boolean) (fields : (listof CExp))]
   [CInt (n : number)]
   [CFloat (n : number)]
   [CStr (s : string)]
-  [CList (mutable : boolean) (fields : (listof CExp))]
-  ; MERGE SET INTO THIS ##
-  [CDict (htable : (hashof CExp CExp))]
-  [CGetField (obj : CExp) (field : CExp)]
-  [CSetField (obj : CExp) (field : CExp) (value : CExp)]
-  [CClass (bases : (listof string)) (fields : (hashof CExp CExp))]
-  
-  [CGenerator (genexp : CExp)]
-  
   [CTrue]
   [CFalse]
   [CNone]
   [CUndefined]
-  
-  [CSeq (e1 : CExp) (e2 : CExp)]
+
+  ; var manipulation
+  [CGet (lhs : CLHS)]
+  [CSet (lhs : CLHS) (value : CExp)]
+  [CDel (lhs : CLHS)]
+  [CPrim1 (prim : symbol) (arg : CExp)]
+  [CPrim2 (prim : symbol) (left : CExp) (right : CExp)] 
 
   ; control
   [CIf (test : CExp) (then : CExp) (else : CExp)]
+
+  ; scope
+  [CLet (x : symbol) (bind : CExp) (body : CExp)]
 
   ; error control
   [CError (e1 : CExp)]
@@ -41,46 +52,37 @@ ParselTongue.
   [CExcept (type : CExp) (body : CExp)]
   [CNamedExcept (name : symbol) (type : CExp) (body : CExp)]
 
-  [CId (x : symbol)]
-  [CLet (x : symbol) (bind : CExp) (body : CExp)]
-  
-  ; args is to be a CList so an empty list of parameters can be passed around
-  [CApp (fun : CExp) (args : CExp)]
-  [CFunc (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
-
-  [CPass]
-  [CReturn (value : CExp)]
+  ; generator expr
+  [CIterator (id : symbol) (iter : CExp)]
+  [CGenerator (value-gen : CExp) (iters : (listof CExp))]
   ;[CYield (value : CExp)]
   
-  [CPrim1 (prim : symbol) (arg : CExp)]
-  [CPrim2 (prim : symbol) (left : CExp) (right : CExp)]
-  
-  [CSet (id : symbol) (value : CExp)])
-  
-(define-type FieldV
-  [fieldV (name : string) (value : CVal)])
+  [CPass]
 
+)
+  
 ; the value data type
 (define-type CVal
+  [VClass (bases : (listof string)) (classdefs : (hashof string CVal)) (fields : (hashof CVal CVal))]
+  [VInstance (bases : (listof string)) (classdefs : (hashof string CVal)) (fields : (hashof CVal CVal))]
+  [VClosure (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
+  ; closure from an instance
+  [VMethod (inst : CVal) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
+
   [VInt (n : number)]
   [VFloat (n : number)]
   [VStr (s : string)]
   
+  [VDict (has-values : boolean) (htable : (hashof CVal CVal))]
+  [VList (mutable : boolean) (fields : (listof CVal))]
   [VTrue]
   [VFalse]
   [VNone]
+
   ; to handle python scope
   [VUndefined]
   
-  [VClosure (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
-  ; closure from an instance
-  [VMethod (inst : CVal) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
-  
   [VGenerator (expr : CExp) (env : Env)]
-  [VList (mutable : boolean) (fields : (listof CVal))]
-  [VDict (htable : (hashof CVal CVal))]
-  [VClass (bases : (listof string)) (fields : (hashof CVal CVal))]
-  [VInstance (bases : (listof string)) (fields : (hashof CVal CVal))]
 )
 
 ; the combination value with store, also used to keep track of exceptions

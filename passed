@@ -1,11 +1,4 @@
 #!/bin/bash
-echo "TUPLE"
-for file in python-reference/tuple/*.py
-do
-	echo "${file}"
-	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
-done
-
 echo "BOOLEANS"
 for file in python-reference/bool/*.py
 do
@@ -13,15 +6,8 @@ do
 	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
 done
 
-echo "EXCEPTIONS"
-for file in python-reference/exceptions/*.py
-do
-	echo "${file}"
-	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
-done
-
-echo "TYPES"
-for file in python-reference/exceptions/*.py
+echo "BUILTINS"
+for file in python-reference/builtin/*.py
 do
 	echo "${file}"
 	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
@@ -38,38 +24,38 @@ echo "update"
 racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-clear.py
 
 
-echo "LIST"
-echo "identity"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/lists/test_list_identity.py
-echo "truth"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/lists/test_list_truth.py
-echo "simple"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/lists/test_list_simple.py
+echo "EXCEPTIONS"
+for file in python-reference/exceptions/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
 
+echo "LISTS"
+for file in python-reference/lists/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
 
 echo "SCOPE"
-echo "lambda1"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda1.py
-echo "lambda2"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda2.py
-echo "lambda4"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/lambda4.py
-echo "nesting"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/simple-nesting.py
-echo "enclosing"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/nearest-enclosing-scope.py
-echo "rebinding"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/scope/simple-and-rebinding.py
+for file in python-reference/scope/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
 
+echo "TUPLE"
+for file in python-reference/tuple/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
 
-echo "BUILTIN"
-echo "len"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/len.py
-echo "callable"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/callable.py
-echo "isinstance"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/isinstance.py
-echo "filter"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/filter.py
-
+echo "TYPES"
+for file in python-reference/types/*.py
+do
+	echo "${file}"
+	racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < "${file}"
+done
 

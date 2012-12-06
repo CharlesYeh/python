@@ -1,24 +1,12 @@
 #!/bin/bash
 
-echo "TYPES"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/types/test_string_slices.py
+bool/bool-isinstance.py
+dict/update
+exceptions/reraise.py
+scope/locals-function.py
+scope/nesting-plus-free-ref-to-global.py
+scope/nonlocal-method.py
+tuple/tuple-constructors.py
+types/test_string_slices.py
 
-echo "BOOL"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-compare-list-dict.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/bool/bool-isinstance.py
-
-echo "EXCEPTIONS"
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/exceptions/reraise.py
-
-DICT
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-contains.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-get.py
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/dict/dict-clear.py
-
-TUPLE
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/tuple/tuple-add.py
-
-BUILTIN
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/isinstance
-racket ~/python/python-main.rkt --python-path /course/cs173/python/Python-3.2.3/python --interp < python-reference/builtin/filter
 
