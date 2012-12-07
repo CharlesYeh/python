@@ -85,11 +85,9 @@ structure that you define in python-syntax.rkt
                  ('decorator_list decorator_list)
                  ('returns returns))
      (PyAssign (IdLHS (string->symbol name))
-               (PyFunc #f
-#|
+               (PyFunc
 (if (member (PyId 'classmethod)
                                    (map get-structured-python decorator_list)) #t #f)
-|#
                        (get-structured-python args)
                        (get-structured-python body)))]
     [(hash-table ('nodetype "ClassDef")

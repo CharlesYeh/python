@@ -160,6 +160,10 @@
                                              (if (equal? (rest e) env)
                                                  (VClosure (first bases) v a d b (rest e))
                                                  (VClosure bs v a d b e))]
+                                   [VMethod (bs i v a d b e) 
+                                            (if (equal? (rest e) env)
+                                                (VMethod (first bases) i v a d b (rest e))
+                                                (VMethod bs i v a d b e))]
                                    [else val])))]
           ; mutate super class def into "classdefs", then recurse for super's super defs
           [define set-def
@@ -188,6 +192,14 @@
                                 (reverse (interp-mro (VClass bases classdefs fields) empty)))]
               [define class-val (VClass mro classdefs fields)])
         (begin
+          ; replace inst in VMethods in f since they're class methods
+          (map (lambda (key)
+                 (type-case CVal (some-v (hash-ref fields key))
+                   [VMethod (bs i v a d b e)
+                            (hash-set! fields key (VMethod bs class-val v a d b e))]
+                   [else (void)]))
+               (hash-keys fields))
+          
           ; add current class
           (hash-set! classdefs (first bases) class-val)
           (ValueA class-val store))))))
@@ -908,24 +920,19 @@
                        (ValueA (if (member (first bases) i-bases) (VTrue) (VFalse))
                                store))]
              [define check-error (interp-throw-error 'TypeError empty env store)])
-       (type-case CVal val1
-         [VInstance (i-bases i-classdefs i-fields)
-                    (type-case CVal val2
-                      ; check if given class is in instance's supers
-                      [VClass (bases classdefs fields) (check-lambda i-bases bases)]
-                      [else check-error])]
-  
-         ; TODO: unfortunately special casing these
-         [VTrue () (type-case CVal val2
-                     [VClass (bases classdefs fields) (check-lambda (list "bool" "int") bases)]
-                     [else check-error])]
-         [VFalse () (type-case CVal val2
-                      [VClass (bases classdefs fields) (check-lambda (list "bool" "int") bases)]
-                      [else check-error])]
-         [VInt (n) (type-case CVal val2
-                     [VClass (bases classdefs fields) (check-lambda (list "int") bases)]
-                     [else check-error])]
-         [else (ValueA (VFalse) store)]))]
+       (type-case CVal val2
+         [VClass (bases classdefs fields)
+                 (type-case CVal val1
+                   [VInstance (i-bases i-classdefs i-fields)
+                              ; check if given class is in instance's supers
+                              (check-lambda i-bases bases)]
+                   
+                   ; TODO: unfortunately special casing these
+                   [VTrue () (check-lambda (list "bool" "int") bases)]
+                   [VFalse () (check-lambda (list "bool" "int") bases)]
+                   [VInt (n) (check-lambda (list "int") bases)]
+                   [else (ValueA (VFalse) store)])]
+         [else check-error]))]
     
     [else (error 'interp "Unhandled prim2 operator")]))
 
@@ -1244,6 +1251,7 @@
                                           (hash-set! (first newenv) 'super super-loc)
                                           (hash-set! store super-loc (super-lambda (first a) bs newenv))))
                                     
+                                    ; if inst = VNone, then replace with classdef for class method
                                     (hash-set! store newloc inst)
                                     (interp-app-helper v func (rest a) fields d
                                                        newenv env store)))]
