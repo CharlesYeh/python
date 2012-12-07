@@ -26,7 +26,7 @@
     
     ; objects/functions
     [PyClass (bases body) (CClass bases (get-vars-then-desugar empty body))]
-    [PyFunc (args body) (CFunc #f args empty (get-vars-then-desugar args body))]
+    [PyFunc (static args body) (CFunc static #f args empty (get-vars-then-desugar args body))]
     [PyApp (fun args) (CApp (desugar-helper fun)
                             (CList #f (map desugar-helper args)))]
     [PyReturn (value) (CReturn (desugar-helper value))]
@@ -172,7 +172,7 @@
     ; lifted to top of FuncP, and not above it, but look for nonlocals if currently looking for locals
     ; extend = global, if looking for nonlocals, then global = false so it only goes to the next
     [PyClass (supers body) (if extend (get-vars global (not global) global body) empty)]
-    [PyFunc (args body) (if extend (get-vars global (not global) global body) empty)]
+    [PyFunc (static args body) (if extend (get-vars global (not global) global body) empty)]
     [PyApp (func args) empty]
     
     [PyId (name) empty]

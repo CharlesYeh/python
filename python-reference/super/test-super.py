@@ -41,6 +41,7 @@ ___assertEqual(E.f(E()), 'ABCD')
 ___assertEqual(F().f(), 'ABCD')
 ___assertEqual(F.f(F()), 'ABCD')
 
+print("HI")
 ___assertEqual(A.cm(), (A, 'A'))
 ___assertEqual(A().cm(), (A, 'A'))
 ___assertEqual(G.cm(), (G, 'A'))

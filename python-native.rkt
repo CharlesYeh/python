@@ -17,7 +17,7 @@ We hope to change these to class definitions
 ;------------------DICT METHODS------------------
 ;; method for dict.get(key)
 (define (dict-get-lambda (self : CVal) (env : Env)) : CVal
-  (VMethod self #f (list 'self 'key 'default) (list (CUndefined) (CNone))
+  (VMethod "" self #f (list 'self 'key 'default) (list (CUndefined) (CNone))
     (CLet 'temp-val (CPrim2 'builtin-dict-get (core-id 'self) (core-id 'key))
       ; return default if None
       (CIf (CPrim2 'Eq (core-id 'temp-val) (CNone))
@@ -27,33 +27,40 @@ We hope to change these to class definitions
 
 ;; method for dict.clear()
 (define (dict-clear-lambda [self : CVal] [env : Env]) : CVal
-  (VMethod self #f (list 'self) empty
+  (VMethod "" self #f (list 'self) empty
     (CPrim1 'builtin-dict-clear (core-id 'self))
     env))
 
 ;; method for dict.update(vals)
 (define (dict-update-lambda [self : CVal] [env : Env]) : CVal
-  (VMethod self #f (list 'self 'new-vals) (list (CDict #t (make-hash empty)))
+  (VMethod "" self #f (list 'self 'new-vals) (list (CDict #t (make-hash empty)))
     (CPrim2 'builtin-dict-update (core-id 'self) (core-id 'new-vals))
     env))
 
 ;; method for dict.keys()
 (define (dict-keys-lambda [self : CVal] [env : Env]) : CVal
-  (VMethod self #f (list 'self) empty
+  (VMethod "" self #f (list 'self) empty
     (CReturn (CPrim1 'builtin-dict-keys (core-id 'self)))
     env))
 
 ;; method for dict.values()
 (define (dict-values-lambda [self : CVal] [env : Env]) : CVal
-  (VMethod self #f (list 'self) empty
+  (VMethod "" self #f (list 'self) empty
     (CReturn (CPrim1 'builtin-dict-values (core-id 'self)))
     env))
 
 ;; method for dict.items()
 (define (dict-items-lambda [self : CVal] [env : Env]) : CVal
-  (VMethod self #f (list 'self) empty
+  (VMethod "" self #f (list 'self) empty
     (CReturn (CPrim1 'builtin-dict-items (core-id 'self)))
     env))
+
+(define (super-lambda [self-var : symbol] [base : string] [env : Env]) : CVal
+  (VClosure "" #f empty
+            empty
+            (CReturn (CPrim2 'builtin-super (CStr base)
+                                            (CGet (CIdLHS self-var))))
+            env))
 
 ;-------------------PRIMITIVE NATIVE FUNCTIONS-------------------
 
@@ -100,7 +107,7 @@ We hope to change these to class definitions
     [VDict (has-values htable) (< 0 (length (hash-keys htable)))]
     [VClass (bases classdefs fields) #t]
     [VInstance (bases classdefs fields) #t]
-    [VClosure (varargs arg defaults body env) #t]
+    [VClosure (base varargs arg defaults body env) #t]
     [else #f]))
 
 ;--------------STRING UTIL FUNCTIONS--------------

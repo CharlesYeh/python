@@ -41,37 +41,11 @@
             [ReturnA (value store) (ReturnA value store)]
             [ValueA (value store) (interp-env e2 env store)])]
     
-    [CClass (bases body)
-            (local ([define new-env (env-extend env)]
-                    [define classdefs (make-hash empty)]
-                    [define fields (make-hash empty)]
-                    [define var-lambda (lambda (var) (VStr (symbol->string var)))]
-                    [define loc-lambda (lambda (var) (lookup var new-env))]
-                    [define val-lambda (lambda (loc)
-                                         (local ([define val (some-v (hash-ref store loc))])
-                                           (type-case CVal val
-                                             ; remove the extra scope added when interpreting the class def
-                                             [VClosure (v a d b e) (VClosure v a d b (rest e))]
-                                             [else val])))]
-                    [define class-val (VClass bases classdefs fields)])
-              (begin
-                ; create scope for class, then pull out assignments
-                (interp-env body new-env store)
-                (map (lambda (str)
-                       (hash-set! fields (var-lambda str)
-                                         (val-lambda (loc-lambda str))))
-                     (hash-keys (first new-env)))
-                ; get class defs
-                (map (lambda (base)
-                       (hash-set! classdefs base (val-lambda
-                                                  (loc-lambda
-                                                   (string->symbol base)))))
-                     (rest bases))
-                ; add current class
-                (hash-set! classdefs (first bases) class-val)
-                (ValueA class-val store)))]
-
-    [CFunc (varargs args defaults body) (ValueA (VClosure varargs args defaults body env) store)]
+    [CClass (bases body) (interp-class bases body env store)]
+    [CFunc (static varargs args defaults body)
+           (if static
+               (ValueA (VMethod "" (VNone) varargs args defaults body env) store)
+               (ValueA (VClosure "" varargs args defaults body env) store))]
     [CApp (func arges)
           (type-case AnswerC (interp-env func env store)
             [ExceptionA (exn-val store) (ExceptionA exn-val store)]
@@ -168,8 +142,71 @@
                 [ReturnA (value store) (ExceptionA value store)]
                 [YieldImm (value store) (|#
     
-    [CPass () (ValueA (VUndefined) store)]
-))
+    [CPass () (ValueA (VUndefined) store)]))
+
+;; interp-class : (listof string) CExp Env Store -> AnswerC
+;; interprets a class by interpreting the body and pulling out the fields
+(define (interp-class [bases : (listof string)] [body : CExp] [env : Env] [store : Store]) : AnswerC
+  (local ([define new-env (env-extend env)]
+          [define classdefs (make-hash empty)]
+          [define fields (make-hash empty)]
+          [define var-lambda (lambda (var) (VStr (symbol->string var)))]
+          [define loc-lambda (lambda (var) (lookup var new-env))]
+          [define val-lambda (lambda (loc)
+                               (local ([define val (some-v (hash-ref store loc))])
+                                 (type-case CVal val
+                                   [VClosure (bs v a d b e) 
+                                             ; remove the extra scope added when interpreting the class def
+                                             (if (equal? (rest e) env)
+                                                 (VClosure (first bases) v a d b (rest e))
+                                                 (VClosure bs v a d b e))]
+                                   [else val])))]
+          ; mutate super class def into "classdefs", then recurse for super's super defs
+          [define set-def
+            (lambda (base)
+              (local ([define def (val-lambda (loc-lambda (string->symbol base)))])
+                (begin
+                  ; get def
+                  (hash-set! classdefs base def)
+                  ; recurse into def for more defs
+                  (type-case CVal def
+                    [VClass (bases supers fields) (map set-def (rest bases))]
+                    [else (error 'interp "Super isn't class")]))))])
+    (begin
+      ; create scope for class, then pull out assignments
+      (interp-env body new-env store)
+      (map (lambda (str)
+             (hash-set! fields (var-lambda str)
+                        (val-lambda (loc-lambda str))))
+           (hash-keys (first new-env)))
+      ; get class defs
+      (map set-def (rest bases))
+      ; set native var __dict__
+      (hash-set! fields (VStr "__dict__") (VDict #t fields))
+      ; get method resolution order
+      (local ([define mro (cons (first bases)
+                                (reverse (interp-mro (VClass bases classdefs fields) empty)))]
+              [define class-val (VClass mro classdefs fields)])
+        (begin
+          ; add current class
+          (hash-set! classdefs (first bases) class-val)
+          (ValueA class-val store))))))
+
+;; interp-mro : CVal (listof string) -> (listof string)
+;; determines the method resolution order of a new class definition
+(define (interp-mro [classdef : CVal] [mro : (listof string)]) : (listof string)
+  (type-case CVal classdef
+    [VClass (bases classdefs body)
+            (foldr (lambda (b res)
+                     (if (or (member b res) (member b mro))
+                         res
+                         (append
+                          (append
+                           res (interp-mro (some-v (hash-ref classdefs b)) res))
+                          (list b))))
+                   empty
+                   (rest bases))]
+    [else (error 'interp "No mro for non-classes")]))
 
 ;; interp-generator : CExp (listof CExp) Env Store -> AnswerC
 ;; turns a generator expression into a list
@@ -474,8 +511,8 @@
                             [VStr (s) (VStr "string")]
                             [VInt (n) (VStr "int")]
                             [VFloat (n) (VStr "float")]
-                            [VClosure (varargs args body defaults env) (VStr "function")]
-                            [VMethod (inst varargs args body defaults env) (VStr "function")]
+                            [VClosure (base varargs args body defaults env) (VStr "function")]
+                            [VMethod (base inst varargs args body defaults env) (VStr "function")]
                             [VTrue () (VStr "boolean")]
                             [VFalse () (VStr "boolean")]
                             [VUndefined () (VStr "undefined")]
@@ -623,10 +660,6 @@
 (define (interp-prim2-helper [op : symbol] [exp1 : CExp] [exp2 : CExp] [val1 : CVal] [val2 : CVal] [env : Env] [store : Store]) : AnswerC
   (case op
     ; BOOLEAN PRIM
-    ['Or
-     (ValueA (if (or (get-truth-value val1) (get-truth-value val2))
-                 (VTrue) (VFalse))
-             store)]
     ['BitXor
      (cond
        [(and (VDict? val1) (not (VDict-has-values val1))
@@ -673,6 +706,10 @@
                  (hash-keys v1))
             (ValueA (VDict #f res-table) store)))]
        [else (interp-throw-error 'TypeError empty env store)])]
+    ['Or
+     (ValueA (if (or (get-truth-value val1) (get-truth-value val2))
+                 (VTrue) (VFalse))
+             store)]
     ['And
      (ValueA (if (and (get-truth-value val1) (get-truth-value val2))
                  (VTrue) (VFalse))
@@ -813,6 +850,25 @@
     ['Lt (interp-compare < val1 val2 env store)]
     ['LtE (interp-compare <= val1 val2 env store)]
     
+    ; 
+    ['builtin-super
+     (type-case CVal val1
+       [VStr (base)
+             (type-case CVal val2
+               [VInstance (i-bases i-classdefs i-fields)
+                          (local ([define found (box #f)]
+                                  [define rbases
+                                    (rest (foldl (lambda (b res)
+                                                   (begin
+                                                     (if (equal? b base)
+                                                         (set-box! found #t)
+                                                         (void))
+                                                     (if (unbox found) (append res (list b)) res)))
+                                                 empty
+                                                 i-bases))])
+                              (ValueA (VInstance rbases i-classdefs i-fields) store))]
+               [else (error 'interp "super() with non-instance")])]
+       [else (error 'interp "super() with non-string")])]
     ['builtin-dict-update
      (type-case CVal val1
        [VDict (has-values1 htable1)
@@ -836,7 +892,7 @@
 
     ['builtin-filter
      (type-case CVal val1
-       [VClosure (varargs args defaults body env)
+       [VClosure (base varargs args defaults body env)
                  (type-case CVal val2
                    [VList (mutable fields) (interp-builtin-filter val1 fields empty env store)]
                    [else (interp-throw-error 'TypeError empty env store)])]
@@ -880,7 +936,7 @@
   (if (empty? iter)
       (ValueA (VList #t (reverse result)) store)
       (type-case CVal closure
-        [VClosure (v args d body env)
+        [VClosure (base v args d body env)
                   ; check function
                   (cond
                     [(not (= 1 (length args))) (ValueA (VUndefined) store)]
@@ -932,6 +988,7 @@
 ;; interp-get : CLHS Env Store -> AnswerC
 ;; gets the LHS expression from the env and store
 (define (interp-get [lhs : CLHS] [env : Env] [store : Store]) : AnswerC
+  (begin
   (type-case CLHS lhs
     [CIdLHS (x)
             (local ([define loc (lookup x env)])
@@ -962,8 +1019,7 @@
                                     [VDict (has-values htable)
                                            (cond
                                              ; TODO: make dict it's own class
-                                             [(equal? (VStr "update") field-val)
-                                              (dict-update-lambda obj-val env)]
+                                             [(equal? (VStr "update") field-val) (dict-update-lambda obj-val env)]
                                              [(equal? (VStr "get") field-val) (dict-get-lambda obj-val env)]
                                              [(equal? (VStr "keys") field-val) (dict-keys-lambda obj-val env)]
                                              [(equal? (VStr "clear") field-val) (dict-clear-lambda obj-val env)]
@@ -971,20 +1027,50 @@
                                              [(equal? (VStr "items") field-val) (dict-items-lambda obj-val env)]
                                              [else (VUndefined)])]
                                     [VClass (bases classdefs fields)
-                                            (cond
-                                              [(equal? (VStr "__dict__") field-val) (VDict #t fields)]
-                                              [else
-                                               (type-case (optionof CVal) (hash-ref fields field-val)
-                                                 [none () (VUndefined)]
-                                                 [some (exp) exp])])]
+                                            (type-case (optionof CVal) (hash-ref fields field-val)
+                                              ; look in a super class
+                                              [none () (interp-instance-method obj-val bases field-val store)]
+                                              [some (exp) exp])]
                                     [VInstance (bases classdefs fields)
-                                               (type-case (optionof CVal) (hash-ref fields field-val)
-                                                 [none () (VUndefined)]
-                                                 [some (exp) exp])]
+                                               (cond
+                                                 [(equal? (VStr "__class__") field-val) (some-v (hash-ref classdefs (first bases)))]
+                                                 [else
+                                                  (type-case (optionof CVal) (hash-ref fields field-val)
+                                                    ; if method, then get from class def instead
+                                                    [some (n) (if (or (VClosure? n) (VMethod? n))
+                                                                  (interp-instance-method obj-val bases field-val store)
+                                                                  n)]
+                                                    [none () (interp-instance-method obj-val bases field-val store)])])]
                                     [else (VUndefined)])
                                   store)])])]
     ; convert to list
     [CListLHS (li) (interp-lhs-list li interp-get env store)]))
+  )
+
+(define (interp-instance-method [inst : CVal] [bases : (listof string)] [field-val : CVal] [store : Store]) : CVal
+  (if (empty? bases)
+      ; TODO: throw attribute error
+      (error 'interp "EMPTY")
+      (type-case CVal inst
+        [VInstance (i-bases classdefs fields)
+                   ; get desired class def, isn't necessarily sub class
+                   (local ([define c-def (some-v (hash-ref classdefs (first bases)))]
+                           [define c-fields (VClass-fields c-def)])
+                     (type-case (optionof CVal) (hash-ref c-fields field-val)
+                       [some (n) (type-case CVal n
+                                   [VClosure (bs v a d b e) (VMethod bs inst v a d b e)]
+                                   [else n])]
+                       [none () (interp-instance-method inst (rest bases) field-val store)]))]
+        [VClass (i-bases classdefs fields)
+                   ; get desired class def, isn't necessarily sub class
+                   (local ([define c-def (some-v (hash-ref classdefs (first bases)))]
+                           [define c-fields (VClass-fields c-def)])
+                     (type-case (optionof CVal) (hash-ref c-fields field-val)
+                       [some (n) (type-case CVal n
+                                   [VClosure (bs v a d b e) (VClosure bs v a d b e)]
+                                   [else n])]
+                       [none () (interp-instance-method inst (rest bases) field-val store)]))]
+        [else (error 'interp "inst isn't instance")])))
 
 ;; interp-lhs-list : (listof CLHS) (CLHS Env Store -> AnswerC) Env Store -> AnswerC
 ;; interprets a list of CLHS expressions
@@ -1094,37 +1180,24 @@
     [else
      (local ([define new-fields (make-hash empty)]
              [define new-instance (VInstance bases classdefs new-fields)]
-             [define class-env (env-extend env)]
-             [define super-loc (new-loc)])
+             [define class-env (env-extend env)])
        (begin
-         ; add a "class env" to bind super in
-         (hash-set! (first class-env) 'super super-loc)
-         (hash-set! store super-loc
-                    (VMethod new-instance #f (list 'self 'classdef 'inst)
-                                             (list (CNone) (CNone))
-                             (CPrim2 'builtin-super (CGet (CDotLHS (CGet (CIdLHS 'self))
-                                                                   (CStr "__class__")))
-                                                    (CGet (CIdLHS 'self)))
-                             class-env))
          ; copy fields to instance
          (map (lambda (key)
-                (local ([define value (some-v (hash-ref fields key))]
-                        )
+                (local ([define value (some-v (hash-ref fields key))])
                   (type-case CVal value
                     ; change VClosure to VMethod
-                    [VClosure (varargs args defaults body env)
-                              (local ([define m-val (VMethod new-instance varargs args defaults
+                    [VClosure (base varargs args defaults body env)
+                              (local ([define m-val (VMethod base new-instance varargs args defaults
                                                              body class-env)])
                                 (hash-set! new-fields key m-val))]
                     ; leave all other fields as-is
                     [else (hash-set! new-fields key value)])))
               (hash-keys fields))
-         ; add __class__ = class def
-         (hash-set! new-fields (VStr "__class__") (some-v (hash-ref classdefs (first bases))))
          ; call constructor
-         (if (member (VStr "__init__") (hash-keys new-fields))
-             (interp-app (some-v (hash-ref new-fields (VStr "__init__"))) args env store)
-             (ExceptionA (VUndefined) store))
+         (type-case (optionof CVal) (hash-ref new-fields (VStr "__init__"))
+           [some (v) (interp-app v args env store)]
+           [none () (ExceptionA (VUndefined) store)])
          ; return instance
          new-instance))]))
 
@@ -1142,19 +1215,35 @@
             (type-case CVal value
               [VList (mutable fields)
                      (type-case CVal func
-                       [VClosure (v a d b e)
+                       [VClosure (bs v a d b e)
                                  ; TODO: don't special case locals()?
                                  (cond
                                    [(equal? b locals-func-body)
                                     (interp-env (CReturn locals-func-body) env store)]
                                    [else
-                                     (interp-app-helper v func a fields d
-                                                        (env-extend e) env store)])]
+                                    (local ([define extended-env (env-extend e)]
+                                            [define super-loc (new-loc)])
+                                      (begin
+                                        (if (empty? a)
+                                            (void)
+                                            (begin
+                                              (hash-set! (first extended-env) 'super super-loc)
+                                              (hash-set! store super-loc (super-lambda (first a) bs extended-env))))
+                                        (interp-app-helper v func a fields d
+                                                       extended-env env store)))])]
                        ; add the first argument
-                       [VMethod (inst v a d b e)
-                                (local ([define newloc (new-loc)]
+                       [VMethod (bs inst v a d b e)
+                                (local ([define super-loc (new-loc)]
+                                        [define newloc (new-loc)]
                                         [define newenv (env-bind #t (env-extend e) (first a) newloc)])
                                   (begin
+                                    ; bind super
+                                    (if (empty? a)
+                                        (void)
+                                        (begin
+                                          (hash-set! (first newenv) 'super super-loc)
+                                          (hash-set! store super-loc (super-lambda (first a) bs newenv))))
+                                    
                                     (hash-set! store newloc inst)
                                     (interp-app-helper v func (rest a) fields d
                                                        newenv env store)))]
@@ -1180,8 +1269,8 @@
     ; apply!!
     [(and (empty? params) (empty? args))
      (type-case CVal closure
-       [VClosure (v a d body e) (interp-env body closureEnv store)]
-       [VMethod (inst v a d body e) (interp-env body closureEnv store)]
+       [VClosure (bs v a d body e) (interp-env body closureEnv store)]
+       [VMethod (bs inst v a d body e) (interp-env body closureEnv store)]
        [else (interp-throw-error 'TypeError empty appEnv store)])]
     
     ; no app args, symbols still, use defaults
@@ -1208,7 +1297,7 @@
      (local ([define newloc (new-loc)]
              [define ans args])
        (type-case CVal closure
-         [VClosure (v a d body e)
+         [VClosure (bs v a d body e)
                    (begin
                      (hash-set! store newloc (VList #f args))
                      (interp-env body

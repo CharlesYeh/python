@@ -16,7 +16,7 @@
   [PySeq (es : (listof PyExpr))]
   
   [PyClass (supers : (listof string)) (body : PyExpr)]
-  [PyFunc (args : (listof symbol)) (body : PyExpr)]
+  [PyFunc (static : boolean) (args : (listof symbol)) (body : PyExpr)]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   [PyReturn (value : PyExpr)]
   

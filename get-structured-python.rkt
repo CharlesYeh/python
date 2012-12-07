@@ -75,7 +75,7 @@ structure that you define in python-syntax.rkt
     [(hash-table ('nodetype "Lambda")
                  ('args args)
                  ('body body))
-     (PyFunc (get-structured-python args)
+     (PyFunc #f (get-structured-python args)
              (PyReturn (get-structured-python body)))]
     ; declare a lambda, but don't automatically return
     [(hash-table ('nodetype "FunctionDef")
@@ -85,7 +85,12 @@ structure that you define in python-syntax.rkt
                  ('decorator_list decorator_list)
                  ('returns returns))
      (PyAssign (IdLHS (string->symbol name))
-               (PyFunc (get-structured-python args)
+               (PyFunc #f
+#|
+(if (member (PyId 'classmethod)
+                                   (map get-structured-python decorator_list)) #t #f)
+|#
+                       (get-structured-python args)
                        (get-structured-python body)))]
     [(hash-table ('nodetype "ClassDef")
                  ('name name)

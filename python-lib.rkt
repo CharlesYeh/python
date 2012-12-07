@@ -63,12 +63,12 @@ that calls the primitive `print`.
           (local ([define fields (make-hash empty)])
             (CLet 'message (CStr "")
                   (CLet '__init__
-                        (CFunc #f
+                        (CFunc #f #f
                                (list 'self 'message)
                                (list (CStr "No active exception"))
                                (CSet (CDotLHS (get-id 'self) (CStr "message")) (get-id 'message)))
                         (CLet '__str__
-                              (CFunc #f
+                              (CFunc #f #f
                                      (list 'self)
                                      empty
                                      (CReturn (CGet (CDotLHS (get-id 'self) (CStr "message")))))
@@ -76,101 +76,101 @@ that calls the primitive `print`.
               )))))
 
 (define print-lambda
-  (CFunc #f (list 'to-print) empty
+  (CFunc #f #f (list 'to-print) empty
     (CPrim1 'to-print (get-id 'to-print))))
 
 (define all-lambda
-  (CFunc #f (list 'l) empty
+  (CFunc #f #f (list 'l) empty
     (CReturn (CPrim1 'builtin-all (get-id 'l)))))
 
 (define any-lambda
-  (CFunc #f (list 'l) empty
+  (CFunc #f #f (list 'l) empty
     (CReturn (CPrim1 'builtin-any (get-id 'l)))))
 
 (define locals-lambda
-  (CFunc #f empty empty
+  (CFunc #f #f empty empty
     (CPrim1 'builtin-locals (CNone))))
 
 (define assert-true-lambda
-  (CFunc #f (list 'check-true) empty
+  (CFunc #f #f (list 'check-true) empty
     (CIf (get-id 'check-true) (CTrue) (CError (CStr "Assert failed")))))
 
 (define assert-false-lambda
-  (CFunc #f (list 'check-false) empty
+  (CFunc #f #f (list 'check-false) empty
     (CIf (get-id 'check-false) (CError (CStr "Assert failed"))
                                (CFalse))))
 
 (define assert-equal-lambda
-  (CFunc #f (list 'arg1 'arg2) empty
+  (CFunc #f #f (list 'arg1 'arg2) empty
     (CIf (CPrim2 'Eq (get-id 'arg1) (get-id 'arg2))
          (CTrue)
          (CError (CStr "Assert failed")))))
 
 (define assert-is-lambda
-  (CFunc #f (list 'arg1 'arg2) empty
+  (CFunc #f #f (list 'arg1 'arg2) empty
          (CIf (CPrim2 'Is (get-id 'arg1) (get-id 'arg2))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-is-not-lambda
-  (CFunc #f (list 'arg1 'arg2) empty
+  (CFunc #f #f (list 'arg1 'arg2) empty
          (CIf (CPrim2 'IsNot (get-id 'arg1) (get-id 'arg2))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-in-lambda
-  (CFunc #f (list 'arg1 'arg2) empty
+  (CFunc #f #f (list 'arg1 'arg2) empty
          (CIf (CPrim2 'In (get-id 'arg1) (get-id 'arg2))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-not-in-lambda
-  (CFunc #f (list 'arg1 'arg2) empty
+  (CFunc #f #f (list 'arg1 'arg2) empty
          (CIf (CPrim1 'Not (CPrim2 'In (get-id 'arg1) (get-id 'arg2)))
               (CTrue)
               (CError (CStr "Assert failed")))))
 
 (define assert-raises-lambda
-  (CFunc #t (list 'arg1 'arg2 'arg3) (list (CUndefined) (CNone))
+  (CFunc #f #t (list 'arg1 'arg2 'arg3) (list (CUndefined) (CNone))
          (CTry
            (CApp (get-id 'arg2) (get-id 'arg3))
            (CError (CStr "Assert failed"))
            (list (CExcept (get-id 'arg1) (CTrue))))))
 
 (define filter-lambda
-  (CFunc #f (list 'func 'iter) empty
+  (CFunc #f #f (list 'func 'iter) empty
          (CReturn (CPrim2 'builtin-filter
                           (get-id 'func)
                           (CPrim1 'to-list (get-id 'iter))))))
 
 (define isinstance-lambda
-  (CFunc #f (list 'a 'b) empty
+  (CFunc #f #f (list 'a 'b) empty
          (CReturn (CPrim2 'isinstance (get-id 'a) (get-id 'b)))))
 
 (define range-lambda
-  (CFunc #f (list 'a) empty (CPass)))
+  (CFunc #f #f (list 'a) empty (CPass)))
 
 (define callable-lambda
-  (CFunc #f (list 'arg1) empty
+  (CFunc #f #f (list 'arg1) empty
          (CReturn (CPrim2 'Or
                           (CPrim2 'Eq (CPrim1 'tagof (get-id 'arg1)) (CStr "function"))
                           ; constructors are callable
                           (CPrim2 'Eq (CPrim1 'tagof (get-id 'arg1)) (CStr "class"))))))
 
 (define min-lambda
-  (CFunc #f (list 'arg1) empty
+  (CFunc #f #f (list 'arg1) empty
          (CReturn (CPrim1 'min (get-id 'arg1)))))
 
 (define max-lambda
-  (CFunc #f (list 'arg1) empty
+  (CFunc #f #f (list 'arg1) empty
          (CReturn (CPrim1 'max (get-id 'arg1)))))
 
 (define len-lambda
-  (CFunc #f (list 'arg1) empty
+  (CFunc #f #f (list 'arg1) empty
          (CReturn (CPrim1 'len (get-id 'arg1)))))
 
 (define abs-lambda
-  (CFunc #f (list 'arg1) empty
+  (CFunc #f #f (list 'arg1) empty
          (CLet 'n-arg (CApp (get-id 'float) (CList #f (list (get-id 'arg1))))
            (CReturn (CIf (CPrim2 'Gt (CInt 0) (get-id 'n-arg))
                          (CPrim1 'USub (get-id 'n-arg))
@@ -183,23 +183,23 @@ that calls the primitive `print`.
   (CClass (list "int") (CPass)))
 
 (define float-lambda
-  (CFunc #f (list 'arg1) empty
+  (CFunc #f #f (list 'arg1) empty
     (CReturn (CIf (get-id 'arg1) (CFloat 1) (CFloat 0)))))
 
 (define str-lambda
-  (CFunc #f (list 'arg1) empty
+  (CFunc #f #f (list 'arg1) empty
     (CReturn (CPrim1 'to-string (get-id 'arg1)))))
 
 (define tuple-lambda
-  (CFunc #f (list 'arg1) (list (CList #f empty))
+  (CFunc #f #f (list 'arg1) (list (CList #f empty))
     (CReturn (CPrim1 'to-tuple (get-id 'arg1)))))
 
 (define list-lambda
-  (CFunc #f (list 'arg1) (list (CList #t empty))
+  (CFunc #f #f (list 'arg1) (list (CList #t empty))
     (CReturn (CPrim1 'to-list (get-id 'arg1)))))
 
 (define set-lambda
-  (CFunc #f (list 'arg1) (list (CList #t empty))
+  (CFunc #f #f (list 'arg1) (list (CList #t empty))
     (CReturn (CPrim1 'to-set (get-id 'arg1)))))
 
 (define true-val
@@ -279,7 +279,7 @@ that calls the primitive `print`.
 
 #|
 (define range-lambda
-  (CFunc #f (list 'start 'stop 'step) (list (CUndefined) (CUndefined) (CInt 1))
+  (CFunc #f #f (list 'start 'stop 'step) (list (CUndefined) (CUndefined) (CInt 1))
          (CSeq
            ; if only one arg, set (stop = start), and (start = 0)
            (CIf (CPrim2 'Eq (get-id 'stop) (CUndefined))

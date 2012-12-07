@@ -23,8 +23,8 @@ primitives here.
 ;; converts a core value into a display string
 (define (pretty [arg : CVal]) : string
   (type-case CVal arg
-    [VClosure (varargs args defaults body env) "closure"]
-    [VMethod (inst varargs args defaults body env) "method"]
+    [VClosure (base varargs args defaults body env) "closure"]
+    [VMethod (base inst varargs args defaults body env) "method"]
     [VClass (bases classdefs fields) "class"]
     [VInstance (bases classdefs fields) (string-append "instanceof: " (first bases))]
     

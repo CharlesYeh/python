@@ -17,7 +17,7 @@ ParselTongue.
   [CSeq (e1 : CExp) (e2 : CExp)]
 
   [CClass (bases : (listof string)) (body : CExp)]
-  [CFunc (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
+  [CFunc (static : boolean) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp)]
   ; args is a CList so an empty list of parameters can be passed around
   [CApp (fun : CExp) (args : CExp)]
   [CReturn (value : CExp)]
@@ -65,9 +65,9 @@ ParselTongue.
   [VClass (bases : (listof string)) (classdefs : (hashof string CVal)) (fields : (hashof CVal CVal))]
   [VInstance (bases : (listof string)) (classdefs : (hashof string CVal)) (fields : (hashof CVal CVal))]
   
-  [VClosure (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
+  [VClosure (base : string) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
   ; closure from an instance
-  [VMethod (inst : CVal) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
+  [VMethod (base : string) (inst : CVal) (varargs : boolean) (args : (listof symbol)) (defaults : (listof CExp)) (body : CExp) (env : Env)]
 
   [VDict (has-values : boolean) (htable : (hashof CVal CVal))]
   [VList (mutable : boolean) (fields : (listof CVal))]
