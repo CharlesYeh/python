@@ -20,7 +20,7 @@ that calls the primitive `print`.
 ;; throw-error : symbol (listof CExp) -> CExp
 ;; core expression for throwing the specified error
 (define (throw-error [error : symbol] [args : (listof CExp)]) : CExp
-  (CApp (get-id error) (CList #f args)))
+  (CError (CApp (get-id error) (CList #f args))))
 
 ;-------------------START LIB DEFS-------------------
 (define-type-alias Lib (CExp -> CExp))
@@ -148,7 +148,35 @@ that calls the primitive `print`.
          (CReturn (CPrim2 'isinstance (get-id 'a) (get-id 'b)))))
 
 (define range-lambda
-  (CFunc #f #f (list 'a) empty (CPass)))
+  (CFunc #f #f (list 'a 'b 'c) (list (CUndefined) (CNone) (CInt 1))
+         ; if 'b = None, a = length
+         (CIf (CPrim2 'And
+                      (CPrim2 'Eq (CStr "int") (CPrim1 'tagof (get-id 'a)))
+                      (CPrim2 'Or (CPrim2 'Eq (get-id 'b) (CNone))
+                              (CPrim2 'And
+                                      (CPrim2 'Eq (CStr "int") (CPrim1 'tagof (get-id 'b)))
+                                      (CPrim2 'Eq (CStr "int") (CPrim1 'tagof (get-id 'c))))))
+              (CIf (CPrim2 'Eq (get-id 'b) (CNone))
+                   (CReturn (CPrim1 'builtin-range (get-id 'a)))
+                   ; step can't be 0
+                   (CIf (CPrim2 'Eq (get-id 'c) (CInt 0))
+                        (throw-error 'ValueError empty)
+                        (CReturn
+                          (CPrim2 'builtin-range-add
+                            (get-id 'a)
+                            (CPrim2 'builtin-range-mult
+                              (get-id 'c)
+                              (CPrim1 'builtin-range
+                                (CPrim2 'Add
+                                  (CInt 1)
+                                  (CPrim2 'FloorDiv
+                                    ; step < 0: add 1 to neg range
+                                    (CPrim2 'Add (CIf (CPrim2 'Lt (get-id 'c) (CInt 0))
+                                                      (CInt 1)
+                                                      (CInt -1))
+                                      (CPrim2 'Sub (get-id 'b) (get-id 'a)))
+                                    (get-id 'c)))))))))
+              (throw-error 'TypeError empty))))
 
 (define callable-lambda
   (CFunc #f #f (list 'arg1) empty
@@ -277,35 +305,3 @@ that calls the primitive `print`.
     (python-lib/recur lib-functions)))
 
 
-#|
-(define range-lambda
-  (CFunc #f #f (list 'start 'stop 'step) (list (CUndefined) (CUndefined) (CInt 1))
-         (CSeq
-           ; if only one arg, set (stop = start), and (start = 0)
-           (CIf (CPrim2 'Eq (get-id 'stop) (CUndefined))
-                (CSeq (CSet (CIdLHS 'stop) (get-id 'start)) (CSet (CIdLHS 'start) (CInt 0)))
-                (CPass))
-           ; test for errors, step = 0
-           (CIf (CPrim2 'Eq (get-id 'step) (CInt 0))
-                (throw-error 'TypeError empty)
-                ; error: start, stop, or step are not ints
-                (CIf (CPrim2 'Or
-                             (CPrim2 'Or
-                                     (CPrim2 'NotEq (CPrim1 'tagof (get-id 'start)) (CStr "int"))
-                                     (CPrim2 'NotEq (CPrim1 'tagof (get-id 'start)) (CStr "int")))
-                             (CPrim2 'NotEq (CPrim1 'tagof (get-id 'step)) (CStr "int")))
-                     (throw-error 'TypeError empty)
-                     ; no errors, generate!
-                     (CGenerator
-                       (CLet 'curr-value (get-id 'start)
-                          ; end condition?
-                          (CIf (CPrim2 'Or
-                                       (CPrim2 'And (CPrim2 'Lt (get-id 'step) (CInt 0))
-                                                    (CPrim2 'LtE (get-id 'curr-value) (get-id 'stop)))
-                                       (CPrim2 'And (CPrim2 'Gt (get-id 'step) (CInt 0))
-                                                    (CPrim2 'GtE (get-id 'curr-value) (get-id 'stop))))
-                           (throw-error 'StopIteration empty)
-                           (CSeq
-                             (CSet (CIdLHS 'start) (CPrim2 'Add (get-id 'start) (get-id 'step)))
-                             (CReturn (get-id 'start)))))))))))
-|#

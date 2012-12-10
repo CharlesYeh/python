@@ -75,7 +75,7 @@
              [LException (exn-val store) (ExceptionA exn-val store)]
              [LFields (fields store) (ValueA (VList mutable fields) store)])]
     [CInt (n) (ValueA (VInt n) store)]
-    [CFloat (n) (ValueA (VInt n) store)]
+    [CFloat (n) (ValueA (VFloat n) store)]
     [CStr (s) (ValueA (VStr s) store)]
     [CTrue () (ValueA (VTrue) store)]
     [CFalse () (ValueA (VFalse) store)]
@@ -464,6 +464,16 @@
                                           (hash-keys htable)))
                            env store)]
                   [else (error 'builtin "builtin dict function not on dict")])]
+               ['builtin-range
+(begin
+                (type-case CVal value
+                  [VInt (n) (ValueA (VList #t (if (< n 0)
+                                                  empty
+                                                  (build-list n (lambda (x) (VInt x)))))
+                                    store)]
+                  [else (interp-throw-error 'TypeError empty env store)])
+)
+]
               [else
                (ValueA
                 (case op
@@ -815,9 +825,13 @@
                  (hash-keys v2))
             (ValueA (VDict #f res-table) store)))]
        [(and (numeric? val1) (numeric? val2))
-        (local ([define n1 (to-number val1)]
-                [define n2 (to-number val2)])
-          (ValueA (VInt (- n1 n2)) store))]
+        (cond
+          ; preserve as int
+          [(and (VInt? val1) (VInt? val2))
+           (ValueA (VInt (- (VInt-n val1) (VInt-n val2))) store)]
+          [else (local ([define n1 (to-number val1)]
+                        [define n2 (to-number val2)])
+                  (ValueA (VInt (- n1 n2)) store))])]
        [else (ValueA (VNone) store)])]
     
     ; LOGICAL PRIM
@@ -861,6 +875,31 @@
     ['GtE (interp-compare >= val1 val2 env store)]
     ['Lt (interp-compare < val1 val2 env store)]
     ['LtE (interp-compare <= val1 val2 env store)]
+    
+    ['builtin-range-mult
+     (type-case CVal val2
+       [VList (mutable fields)
+              (type-case CVal val1
+                [VInt (n)
+                      (ValueA (VList mutable
+                                     (map (lambda (f)
+                                            (VInt (* (VInt-n f) n)))
+                                          fields))
+                              store)]
+                [else (interp-throw-error 'TypeError empty env store)])]
+       [else (error 'interp "builtin range needs VList")])]
+    ['builtin-range-add
+     (type-case CVal val2
+       [VList (mutable fields)
+              (type-case CVal val1
+                [VInt (n)
+                      (ValueA (VList mutable
+                                     (map (lambda (f)
+                                            (VInt (+ (VInt-n f) n)))
+                                          fields))
+                              store)]
+                [else (interp-throw-error 'TypeError empty env store)])]
+       [else (error 'interp "builtin range needs VList")])]
     
     ; 
     ['builtin-super
@@ -1040,7 +1079,7 @@
                                               [some (exp) exp])]
                                     [VInstance (bases classdefs fields)
                                                (cond
-                                                 [(equal? (VStr "__class__") field-val) (some-v (hash-ref classdefs (first bases)))]
+                                                 ;[(equal? (VStr "__class__") field-val) (some-v (hash-ref classdefs (first bases)))]
                                                  [else
                                                   (type-case (optionof CVal) (hash-ref fields field-val)
                                                     ; if method, then get from class def instead
@@ -1198,9 +1237,18 @@
                               (local ([define m-val (VMethod base new-instance varargs args defaults
                                                              body class-env)])
                                 (hash-set! new-fields key m-val))]
+                    ; replace class method
+                    [VMethod (base inst varargs args defaults body env)
+                              (local ([define m-val (VMethod base (some-v (hash-ref classdefs (first bases)))
+                                                             varargs args defaults
+                                                             body class-env)])
+                                (hash-set! new-fields key m-val))]
                     ; leave all other fields as-is
                     [else (hash-set! new-fields key value)])))
               (hash-keys fields))
+
+         (hash-set! new-fields (VStr "__class__") (some-v (hash-ref classdefs (first bases))))
+
          ; call constructor
          (type-case (optionof CVal) (hash-ref new-fields (VStr "__init__"))
            [some (v) (interp-app v args env store)]
@@ -1251,7 +1299,6 @@
                                           (hash-set! (first newenv) 'super super-loc)
                                           (hash-set! store super-loc (super-lambda (first a) bs newenv))))
                                     
-                                    ; if inst = VNone, then replace with classdef for class method
                                     (hash-set! store newloc inst)
                                     (interp-app-helper v func (rest a) fields d
                                                        newenv env store)))]

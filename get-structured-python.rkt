@@ -247,10 +247,13 @@ structure that you define in python-syntax.rkt
     ; primitives
     [(hash-table ('nodetype "Num")
                  ('n n))
-      (cond
-        [(member (first (string->list ".")) (string->list (number->string n)))
-         (PyFloat n)]
-        [else (PyInt n)])]
+     (local ([define numlist (string->list (number->string n))])
+       (cond
+         [(member (first (string->list ".")) numlist)
+          (PyFloat n)]
+         [(member (first (string->list "e")) numlist)
+          (PyFloat n)]
+         [else (PyInt n)]))]
     [(hash-table ('nodetype "Str")
                  ('s s))
      (PyStr s)]
